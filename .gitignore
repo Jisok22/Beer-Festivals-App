@@ -1,0 +1,27 @@
+# Buildozer build artifacts (huge, machine-specific — SDK, NDK, compiled output)
+.buildozer/
+bin/
+
+# Python virtual environments
+venv/
+buildozer-env/
+
+# Python cache/compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Local SQLite database (test data — don't want it overwriting between machines)
+*.db
+
+# Python packaging artifacts
+build/
+dist/
+*.egg-info/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# VS Code editor settings (optional — remove this line if you want to share settings)
+.vscode/
