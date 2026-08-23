@@ -4,6 +4,7 @@ import webbrowser
 import urllib.parse
 
 from kivy.app import App
+from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.textinput import TextInput
@@ -13,8 +14,8 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.spinner import Spinner
 from kivy.uix.popup import Popup
-from kivy.factory import Factory
 from kivy.uix.checkbox import CheckBox
+from kivy.factory import Factory
 
 import database
 
@@ -39,20 +40,20 @@ class FestivalApp(App):
 
         root = RootWidget()
 
-        list_container = BoxLayout(orientation="vertical", padding=15, spacing=10)
+        list_container = BoxLayout(orientation="vertical", padding=dp(15), spacing=dp(10))
 
         heading = Factory.StyledLabel(
-        text="Beer Festival List",
-        font_size="24sp",
-        bold=True,
-        halign="center",
-        size_hint_y=None,
-        height=44,
+            text="Beer Festival List",
+            font_size="24sp",
+            bold=True,
+            halign="center",
+            size_hint_y=None,
+            height=dp(44),
         )
         heading.bind(size=heading.setter("text_size"))
         list_container.add_widget(heading)
 
-        self.list_layout = GridLayout(cols=1, size_hint_y=None, spacing=8)
+        self.list_layout = GridLayout(cols=1, size_hint_y=None, spacing=dp(8))
         self.list_layout.bind(minimum_height=self.list_layout.setter("height"))
 
         scroll = ScrollView()
@@ -64,7 +65,7 @@ class FestivalApp(App):
         add_button = Factory.FloatingAddButton(
             text="+",
             size_hint=(None, None),
-            size=(64, 64),
+            size=(dp(64), dp(64)),
             pos_hint={"right": 0.95, "y": 0.04},
         )
         add_button.bind(on_press=self.open_add_popup)
@@ -75,9 +76,9 @@ class FestivalApp(App):
         return root
 
     def open_add_popup(self, instance):
-        popup_layout = BoxLayout(orientation="vertical", spacing=10, padding=10)
+        popup_layout = BoxLayout(orientation="vertical", spacing=dp(10), padding=dp(10))
 
-        form = GridLayout(cols=2, spacing=8, padding=10, size_hint_y=None, height=380)
+        form = GridLayout(cols=2, spacing=dp(8), padding=dp(10), size_hint_y=None, height=dp(380))
 
         form.add_widget(Factory.StyledLabel(text="Name:"))
         self.name_input = Factory.StyledTextInput(multiline=False)
@@ -88,7 +89,7 @@ class FestivalApp(App):
         form.add_widget(self.location_input)
 
         form.add_widget(Factory.StyledLabel(text="Start date:"))
-        start_row = BoxLayout(spacing=5)
+        start_row = BoxLayout(spacing=dp(5))
         self.start_day = Spinner(text=DAYS[0], values=DAYS)
         self.start_month = Spinner(text=MONTHS[0], values=MONTHS)
         self.start_year = Spinner(text=YEARS[0], values=YEARS)
@@ -98,14 +99,14 @@ class FestivalApp(App):
         form.add_widget(start_row)
 
         form.add_widget(Factory.StyledLabel(text="One day only:"))
-        self.one_day_checkbox = CheckBox(size_hint=(None, None), size=(30, 30))
+        self.one_day_checkbox = CheckBox(size_hint=(None, None), size=(dp(30), dp(30)))
         self.one_day_checkbox.bind(active=self.toggle_one_day)
         checkbox_row = BoxLayout()
         checkbox_row.add_widget(self.one_day_checkbox)
         form.add_widget(checkbox_row)
 
         form.add_widget(Factory.StyledLabel(text="End date:"))
-        end_row = BoxLayout(spacing=5)
+        end_row = BoxLayout(spacing=dp(5))
         self.end_day = Spinner(text=DAYS[0], values=DAYS)
         self.end_month = Spinner(text=MONTHS[0], values=MONTHS)
         self.end_year = Spinner(text=YEARS[0], values=YEARS)
@@ -120,7 +121,7 @@ class FestivalApp(App):
 
         popup_layout.add_widget(form)
 
-        button_row = BoxLayout(size_hint_y=None, height=50, spacing=10)
+        button_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
 
         cancel_button = Factory.CancelButton(text="Cancel")
         button_row.add_widget(cancel_button)
@@ -191,7 +192,7 @@ class FestivalApp(App):
             card = Factory.FestivalCard(orientation="horizontal")
 
             # --- Left column: date range + opening time ---
-            date_column = BoxLayout(orientation="vertical", size_hint_x=None, width=190)
+            date_column = BoxLayout(orientation="vertical", size_hint_x=None, width=dp(190))
 
             date_range_text = (
                 f"{festival['start_date'].strftime('%a %d %b %Y')} to "
@@ -252,7 +253,7 @@ class FestivalApp(App):
                 font_size="12sp",
                 halign="center",
                 size_hint_x=None,
-                width=110,
+                width=dp(110),
             )
             maps_button.bind(
                 on_press=lambda instance, loc=festival["location"]: self.open_in_maps(loc)
