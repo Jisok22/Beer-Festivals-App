@@ -15,6 +15,21 @@ computer restarts, WSL closes, or you come back to this after a break.
 - [Installing via adb (instead of manually copying the APK)](#installing-via-adb-instead-of-manually-copying-the-apk)
 - [Useful commands](#useful-commands)
 
+## Windows VS Code Commands
+
+Create virtual environment
+```
+py -m venv venv
+```
+Activate virtual environment
+```
+venv\Scripts\activate
+```
+Run the app
+```
+py main.py
+```
+
 ## Day-to-day workflow (after editing code on Windows)
 
 This is the routine for making a change and testing it on your phone:
