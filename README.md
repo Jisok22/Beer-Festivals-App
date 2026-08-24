@@ -3,6 +3,18 @@
 This documents the WSL/Buildozer setup so you can pick back up if your
 computer restarts, WSL closes, or you come back to this after a break.
 
+## Contents
+
+- [Day-to-day workflow (after editing code on Windows)](#day-to-day-workflow-after-editing-code-on-windows)
+- [Quick resume (if a build was interrupted)](#quick-resume-if-a-build-was-interrupted)
+- [One-time environment setup (already done — for reference only)](#one-time-environment-setup-already-done--for-reference-only)
+- [Keeping the Linux copy up to date](#keeping-the-linux-copy-up-to-date)
+- [Key buildozer.spec settings](#key-buildozerspec-settings)
+- [Where the APK ends up](#where-the-apk-ends-up)
+- [Known issues hit during setup (for reference)](#known-issues-hit-during-setup-for-reference)
+- [Installing via adb (instead of manually copying the APK)](#installing-via-adb-instead-of-manually-copying-the-apk)
+- [Useful commands](#useful-commands)
+
 ## Day-to-day workflow (after editing code on Windows)
 
 This is the routine for making a change and testing it on your phone:
