@@ -43,7 +43,7 @@ class FestivalApp(App):
         list_container = BoxLayout(orientation="vertical", padding=dp(15), spacing=dp(10))
 
         heading = Factory.StyledLabel(
-            text="Beer Festival List",
+            text="Beer Festival Organiser",
             font_size="24sp",
             bold=True,
             halign="center",
