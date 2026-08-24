@@ -12,8 +12,14 @@ This is the routine for making a change and testing it on your phone:
 2. In your **Ubuntu (WSL)** terminal:
    ```
    source ~/buildozer-env/bin/activate
+   ```
+   ```
    cd ~/beer_festival_app
+   ```
+   ```
    git pull
+   ```
+   ```
    buildozer -v android debug
    ```
    No need for a full clean (`rm -rf .buildozer`) for ordinary code
