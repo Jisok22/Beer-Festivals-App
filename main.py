@@ -249,11 +249,11 @@ class FestivalApp(App):
 
             # --- Right column: Google Maps button ---
             maps_button = Factory.RoundedButton(
-                text="Location on\nGoogle Maps",
+                text="Google\nMaps",
                 font_size="12sp",
                 halign="center",
                 size_hint_x=None,
-                width=dp(110),
+                width=dp(90),
             )
             maps_button.bind(
                 on_press=lambda instance, loc=festival["location"]: self.open_in_maps(loc)
