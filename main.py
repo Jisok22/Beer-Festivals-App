@@ -223,9 +223,9 @@ class FestivalApp(App):
         self.list_layout.clear_widgets()
         festivals = database.get_all_festivals()
         for festival in festivals:
-            card = Factory.FestivalCard(orientation="vertical", height=dp(120))
+            card = Factory.FestivalCard(orientation="vertical", height=dp(100))
 
-            top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(36))
+            top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(25))
 
             name_label = Factory.StyledLabel(text=festival["name"], font_size="15sp", bold=True)
             name_label.halign = "center"
