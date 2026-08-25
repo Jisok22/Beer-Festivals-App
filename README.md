@@ -5,6 +5,7 @@ computer restarts, WSL closes, or you come back to this after a break.
 
 ## Contents
 
+- [Windows VS Code Commands](#windows-vs-code-commands)
 - [Day-to-day workflow (after editing code on Windows)](#day-to-day-workflow-after-editing-code-on-windows)
 - [Quick resume (if a build was interrupted)](#quick-resume-if-a-build-was-interrupted)
 - [One-time environment setup (already done — for reference only)](#one-time-environment-setup-already-done--for-reference-only)
@@ -55,9 +56,13 @@ This is the routine for making a change and testing it on your phone:
    settings like the Python version or NDK pin.
 3. Once it says `BUILD SUCCESSFUL`, install the updated APK straight
    to your phone via `adb` (phone connected by USB, USB debugging
-   enabled — see "Installing via adb" below):
+   enabled — see "Installing via adb" below).
+   
+   Back to a new terminal in Windows VC Code.
    ```
    cd C:\platform-tools
+   ```
+   ```
    .\adb install -r "\\wsl$\Ubuntu\home\jisok\beer_festival_app\bin\beerfestivalapp-0.1-arm64-v8a_armeabi-v7a-debug.apk"
    ```
    The `-r` flag reinstalls over the existing app (keeping it simple —
