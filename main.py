@@ -66,8 +66,8 @@ class FestivalApp(App):
         add_button = Factory.FloatingAddButton(
             text="+",
             size_hint=(None, None),
-            size=(dp(64), dp(64)),
-            pos_hint={"right": 0.95, "y": 0.04},
+            size=(dp(38.4), dp(38.4)),
+            pos_hint={"right": 0.95, "top": 0.98},
         )
         add_button.bind(on_press=self.open_add_popup)
         root.add_widget(add_button)
@@ -228,16 +228,10 @@ class FestivalApp(App):
             top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(36))
 
             name_label = Factory.StyledLabel(text=festival["name"], font_size="15sp", bold=True)
-            name_label.halign = "left"
+            name_label.halign = "center"
             name_label.valign = "middle"
             name_label.bind(size=name_label.setter("text_size"))
             top_row.add_widget(name_label)
-
-            location_label = Factory.StyledLabel(text=festival["location"], font_size="10sp")
-            location_label.halign = "right"
-            location_label.valign = "middle"
-            location_label.bind(size=location_label.setter("text_size"))
-            top_row.add_widget(location_label)
             card.add_widget(top_row)
 
             bottom_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(56))
@@ -274,6 +268,18 @@ class FestivalApp(App):
 
             bottom_row.add_widget(date_column)
 
+            # --- Bottom-middle column: wrapped address ---
+            location_label = Factory.StyledLabel(
+                text=festival["location"],
+                font_size="10sp",
+                halign="center",
+                valign="middle",
+                text_size=(0, None),
+            )
+            location_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+            location_label.bind(texture_size=lambda label, size: setattr(label, "height", size[1]))
+            bottom_row.add_widget(location_label)
+
             # --- Bottom-right column: right-aligned Google Maps button ---
             maps_container = AnchorLayout(anchor_x="right", anchor_y="center")
             maps_button = Factory.RoundedButton(
@@ -281,7 +287,7 @@ class FestivalApp(App):
                 font_size="10sp",
                 halign="center",
                 size_hint_x=None,
-                width=dp(70),
+                width=dp(56),
             )
             maps_button.bind(
                 on_press=lambda instance, loc=festival["location"]: self.open_in_maps(loc)
