@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 import calendar
 import webbrowser
 import urllib.parse
@@ -77,57 +77,72 @@ class FestivalApp(App):
         return root
 
     def open_add_popup(self, instance):
-        popup_layout = BoxLayout(orientation="vertical", spacing=dp(10), padding=dp(10))
+        popup_layout = BoxLayout(orientation="vertical", spacing=dp(5), padding=dp(5))
 
-        form = GridLayout(cols=2, spacing=dp(8), padding=dp(10), size_hint_y=None, height=dp(380))
+        form = BoxLayout(
+            orientation="vertical",
+            spacing=dp(4),
+            padding=dp(10),
+            size_hint_y=None,
+            height=dp(380),
+        )
 
-        form.add_widget(Factory.StyledLabel(text="Name:"))
-        self.name_input = Factory.StyledTextInput(multiline=False)
-        form.add_widget(self.name_input)
+        def add_form_row(label_text, field, row_size_hint_y=1):
+            row = BoxLayout(spacing=dp(0), size_hint_y=row_size_hint_y)
+            label = Factory.StyledLabel(text=label_text, font_size="13sp", size_hint_x=0.33)
+            label.valign = "middle"
+            label.bind(size=label.setter("text_size"))
+            row.add_widget(label)
+            field.size_hint = (0.67, 0.8)
+            row.add_widget(field)
+            form.add_widget(row)
 
-        form.add_widget(Factory.StyledLabel(text="Location / Address:"))
-        self.location_input = Factory.StyledTextInput(multiline=False)
-        form.add_widget(self.location_input)
+        self.name_input = Factory.StyledTextInput(multiline=True)
+        add_form_row("Name:", self.name_input)
 
-        form.add_widget(Factory.StyledLabel(text="Start date:"))
+        self.location_input = Factory.StyledTextInput(multiline=True)
+        add_form_row("Location /\nAddress:", self.location_input)
+
         start_row = BoxLayout(spacing=dp(5))
-        self.start_day = Spinner(text=DAYS[0], values=DAYS)
-        self.start_month = Spinner(text=MONTHS[0], values=MONTHS)
-        self.start_year = Spinner(text=YEARS[0], values=YEARS)
+        self.start_day = Spinner(text=DAYS[0], values=DAYS, font_size="11sp")
+        self.start_month = Spinner(text=MONTHS[0], values=MONTHS, font_size="11sp")
+        self.start_year = Spinner(text=YEARS[0], values=YEARS, font_size="11sp")
         start_row.add_widget(self.start_day)
         start_row.add_widget(self.start_month)
         start_row.add_widget(self.start_year)
-        form.add_widget(start_row)
+        add_form_row("Start date:", start_row, row_size_hint_y=0.8)
 
-        form.add_widget(Factory.StyledLabel(text="One day only:"))
         self.one_day_checkbox = CheckBox(size_hint=(None, None), size=(dp(30), dp(30)))
         self.one_day_checkbox.bind(active=self.toggle_one_day)
-        checkbox_row = BoxLayout()
+        checkbox_row = AnchorLayout(anchor_x="left", anchor_y="center")
         checkbox_row.add_widget(self.one_day_checkbox)
-        form.add_widget(checkbox_row)
+        add_form_row("One day only:", checkbox_row, row_size_hint_y=0.8)
 
-        form.add_widget(Factory.StyledLabel(text="End date:"))
         end_row = BoxLayout(spacing=dp(5))
-        self.end_day = Spinner(text=DAYS[0], values=DAYS)
-        self.end_month = Spinner(text=MONTHS[0], values=MONTHS)
-        self.end_year = Spinner(text=YEARS[0], values=YEARS)
+        self.end_day = Spinner(text=DAYS[0], values=DAYS, font_size="11sp")
+        self.end_month = Spinner(text=MONTHS[0], values=MONTHS, font_size="11sp")
+        self.end_year = Spinner(text=YEARS[0], values=YEARS, font_size="11sp")
         end_row.add_widget(self.end_day)
         end_row.add_widget(self.end_month)
         end_row.add_widget(self.end_year)
-        form.add_widget(end_row)
+        add_form_row("End date:", end_row, row_size_hint_y=0.8)
 
-        form.add_widget(Factory.StyledLabel(text="Opening time:"))
-        self.time_spinner = Spinner(text=TIMES[0], values=TIMES)
-        form.add_widget(self.time_spinner)
+        self.start_day.bind(text=self.update_end_date)
+        self.start_month.bind(text=self.update_end_date)
+        self.start_year.bind(text=self.update_end_date)
+        self.update_end_date()
+
+        self.time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
+        add_form_row("Opening time:", self.time_spinner, row_size_hint_y=0.8)
 
         popup_layout.add_widget(form)
 
         button_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
 
-        cancel_button = Factory.CancelButton(text="Cancel")
+        cancel_button = Factory.CancelButton(text="Cancel", font_size="14sp")
         button_row.add_widget(cancel_button)
 
-        save_button = Factory.RoundedButton(text="Save Festival")
+        save_button = Factory.RoundedButton(text="Save Festival", font_size="14sp")
         button_row.add_widget(save_button)
 
         popup_layout.add_widget(button_row)
@@ -146,6 +161,24 @@ class FestivalApp(App):
         self.end_day.disabled = is_active
         self.end_month.disabled = is_active
         self.end_year.disabled = is_active
+
+    def update_end_date(self, *_):
+        try:
+            start_date = date(
+                int(self.start_year.text),
+                MONTHS.index(self.start_month.text) + 1,
+                int(self.start_day.text),
+            )
+        except ValueError:
+            return
+
+        end_date = start_date + timedelta(days=1)
+        if str(end_date.year) not in YEARS:
+            return
+
+        self.end_day.text = str(end_date.day)
+        self.end_month.text = MONTHS[end_date.month - 1]
+        self.end_year.text = str(end_date.year)
 
     def add_festival(self, instance):
         name = self.name_input.text.strip()
@@ -229,7 +262,7 @@ class FestivalApp(App):
             date_column.add_widget(date_label)
 
             time_label = Factory.StyledLabel(
-                text=f"{festival['opening_time']} opening",
+                text=f"Opens at {festival['opening_time']}",
                 font_size="10sp",
                 halign="left",
                 valign="middle",
