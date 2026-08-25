@@ -41,11 +41,11 @@ class FestivalApp(App):
 
         root = RootWidget()
 
-        list_container = BoxLayout(orientation="vertical", padding=dp(15), spacing=dp(10))
+        list_container = BoxLayout(orientation="vertical", padding=dp(10), spacing=dp(10))
 
         heading = Factory.StyledLabel(
             text="Beer Festival Organiser",
-            font_size="24sp",
+            font_size="18sp",
             bold=True,
             halign="center",
             size_hint_y=None,
@@ -194,13 +194,13 @@ class FestivalApp(App):
 
             top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(36))
 
-            name_label = Factory.StyledLabel(text=festival["name"], font_size="18sp", bold=True)
+            name_label = Factory.StyledLabel(text=festival["name"], font_size="15sp", bold=True)
             name_label.halign = "left"
             name_label.valign = "middle"
             name_label.bind(size=name_label.setter("text_size"))
             top_row.add_widget(name_label)
 
-            location_label = Factory.StyledLabel(text=festival["location"], font_size="13sp")
+            location_label = Factory.StyledLabel(text=festival["location"], font_size="10sp")
             location_label.halign = "right"
             location_label.valign = "middle"
             location_label.bind(size=location_label.setter("text_size"))
@@ -218,7 +218,7 @@ class FestivalApp(App):
             )
             date_label = Factory.StyledLabel(
                 text=date_range_text,
-                font_size="13sp",
+                font_size="10sp",
                 bold=True,
                 halign="left",
                 valign="middle",
@@ -230,7 +230,7 @@ class FestivalApp(App):
 
             time_label = Factory.StyledLabel(
                 text=f"{festival['opening_time']} opening",
-                font_size="13sp",
+                font_size="10sp",
                 halign="left",
                 valign="middle",
                 size_hint_y=None,
@@ -245,7 +245,7 @@ class FestivalApp(App):
             maps_container = AnchorLayout(anchor_x="right", anchor_y="center")
             maps_button = Factory.RoundedButton(
                 text="Google\nMaps",
-                font_size="12sp",
+                font_size="10sp",
                 halign="center",
                 size_hint_x=None,
                 width=dp(70),
