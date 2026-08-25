@@ -6,6 +6,7 @@ import urllib.parse
 from kivy.app import App
 from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.anchorlayout import AnchorLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
@@ -189,14 +190,31 @@ class FestivalApp(App):
         self.list_layout.clear_widgets()
         festivals = database.get_all_festivals()
         for festival in festivals:
-            card = Factory.FestivalCard(orientation="horizontal")
+            card = Factory.FestivalCard(orientation="vertical", height=dp(120))
 
-            # --- Left column: date range + opening time ---
-            date_column = BoxLayout(orientation="vertical", size_hint_x=None, width=dp(190))
+            top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(36))
+
+            name_label = Factory.StyledLabel(text=festival["name"], font_size="18sp", bold=True)
+            name_label.halign = "left"
+            name_label.valign = "middle"
+            name_label.bind(size=name_label.setter("text_size"))
+            top_row.add_widget(name_label)
+
+            location_label = Factory.StyledLabel(text=festival["location"], font_size="13sp")
+            location_label.halign = "right"
+            location_label.valign = "middle"
+            location_label.bind(size=location_label.setter("text_size"))
+            top_row.add_widget(location_label)
+            card.add_widget(top_row)
+
+            bottom_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(56))
+
+            # --- Bottom-left column: date range + opening time ---
+            date_column = BoxLayout(orientation="vertical")
 
             date_range_text = (
                 f"{festival['start_date'].strftime('%a %d %b %Y')} to "
-                f"{festival['end_date'].strftime('%a %d %b %Y')}"
+                f"\n{festival['end_date'].strftime('%a %d %b %Y')}"
             )
             date_label = Factory.StyledLabel(
                 text=date_range_text,
@@ -204,7 +222,8 @@ class FestivalApp(App):
                 bold=True,
                 halign="left",
                 valign="middle",
-                size_hint_y=0.5,
+                size_hint_y=None,
+                height=dp(36),
             )
             date_label.bind(size=date_label.setter("text_size"))
             date_column.add_widget(date_label)
@@ -214,51 +233,29 @@ class FestivalApp(App):
                 font_size="13sp",
                 halign="left",
                 valign="middle",
-                size_hint_y=0.5,
+                size_hint_y=None,
+                height=dp(20),
             )
             time_label.bind(size=time_label.setter("text_size"))
             date_column.add_widget(time_label)
 
-            card.add_widget(date_column)
+            bottom_row.add_widget(date_column)
 
-            # --- Middle column: name + address ---
-            details = BoxLayout(orientation="vertical")
-
-            name_label = Factory.StyledLabel(
-                text=festival["name"],
-                font_size="18sp",
-                bold=True,
-                halign="center",
-                valign="middle",
-                size_hint_y=0.5,
-            )
-            name_label.bind(size=name_label.setter("text_size"))
-            details.add_widget(name_label)
-
-            location_label = Factory.StyledLabel(
-                text=festival["location"],
-                font_size="13sp",
-                halign="center",
-                valign="middle",
-                size_hint_y=0.5,
-            )
-            location_label.bind(size=location_label.setter("text_size"))
-            details.add_widget(location_label)
-
-            card.add_widget(details)
-
-            # --- Right column: Google Maps button ---
+            # --- Bottom-right column: right-aligned Google Maps button ---
+            maps_container = AnchorLayout(anchor_x="right", anchor_y="center")
             maps_button = Factory.RoundedButton(
                 text="Google\nMaps",
                 font_size="12sp",
                 halign="center",
                 size_hint_x=None,
-                width=dp(90),
+                width=dp(70),
             )
             maps_button.bind(
                 on_press=lambda instance, loc=festival["location"]: self.open_in_maps(loc)
             )
-            card.add_widget(maps_button)
+            maps_container.add_widget(maps_button)
+            bottom_row.add_widget(maps_container)
+            card.add_widget(bottom_row)
 
             self.list_layout.add_widget(card)
 
