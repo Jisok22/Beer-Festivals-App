@@ -41,30 +41,39 @@ class PullToRefreshScrollView(ScrollView):
     def __init__(self, refresh_callback=None, **kwargs):
         super().__init__(**kwargs)
         self.refresh_callback = refresh_callback
+        self._pull_triggered = False
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             touch.ud["pull_start_y"] = touch.y
-            touch.ud["pull_started_at_top"] = self.scroll_y >= 0.999
-            touch.ud["pull_threshold_reached"] = False
+            # Check if scroll is near top (scroll_y ranges from 0.0 bottom to 1.0 top)
+            touch.ud["pull_started_at_top"] = self.scroll_y >= 0.98
+            touch.ud["pull_active"] = True
         return super().on_touch_down(touch)
 
     def on_touch_move(self, touch):
-        start_y = touch.ud.get("pull_start_y")
-        if (
-            start_y is not None
-            and touch.ud.get("pull_started_at_top", False)
-            and touch.y - start_y >= dp(48)
-        ):
-            touch.ud["pull_threshold_reached"] = True
+        if touch.ud.get("pull_active"):
+            start_y = touch.ud.get("pull_start_y", touch.y)
+            started_at_top = touch.ud.get("pull_started_at_top", False)
+            
+            # Dragging downward (current Y minus start Y is positive)
+            if started_at_top and (touch.y - start_y) >= dp(60):
+                self._pull_triggered = True
+
         return super().on_touch_move(touch)
 
     def on_touch_up(self, touch):
-        should_refresh = touch.ud.get("pull_threshold_reached", False)
+        should_refresh = self._pull_triggered
+        self._pull_triggered = False
+        
+        if touch.ud.get("pull_active"):
+            touch.ud["pull_active"] = False
 
         handled = super().on_touch_up(touch)
+
         if should_refresh and self.refresh_callback:
             Clock.schedule_once(lambda dt: self.refresh_callback(), 0)
+
         return handled
 
 
