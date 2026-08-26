@@ -253,14 +253,18 @@ class FestivalApp(App):
             return
 
         for festival in festivals:
-            card = Factory.FestivalCard(orientation="vertical", height=dp(100))
+            card = Factory.FestivalCard(orientation="vertical", height=dp(117))
 
-            top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(25))
+            top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(42))
 
-            name_label = Factory.StyledLabel(text=festival["name"], font_size="15sp", bold=True)
-            name_label.halign = "center"
-            name_label.valign = "middle"
-            name_label.bind(size=name_label.setter("text_size"))
+            name_label = Factory.StyledLabel(
+                text=festival["name"],
+                font_size="15sp",
+                bold=True,
+                halign="center",
+                valign="middle",
+            )
+            name_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
             top_row.add_widget(name_label)
             card.add_widget(top_row)
 
