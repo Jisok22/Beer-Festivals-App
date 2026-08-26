@@ -237,7 +237,7 @@ class FestivalApp(App):
             bottom_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(56))
 
             # --- Bottom-left column: date range + opening time ---
-            date_column = BoxLayout(orientation="vertical")
+            date_column = BoxLayout(orientation="vertical", size_hint_x=0.33)
 
             date_range_text = (
                 f"{festival['start_date'].strftime('%a %d %b %Y')} to "
@@ -274,6 +274,7 @@ class FestivalApp(App):
                 font_size="10sp",
                 halign="center",
                 valign="middle",
+                size_hint_x=0.47,
                 text_size=(0, None),
             )
             location_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
@@ -281,7 +282,12 @@ class FestivalApp(App):
             bottom_row.add_widget(location_label)
 
             # --- Bottom-right column: right-aligned Google Maps button ---
-            maps_container = AnchorLayout(anchor_x="right", anchor_y="center")
+            maps_container = AnchorLayout(
+                anchor_x="right",
+                anchor_y="center",
+                size_hint_x=0.20,
+                size_hint_min_x=dp(56),
+            )
             maps_button = Factory.RoundedButton(
                 text="Google\nMaps",
                 font_size="10sp",
