@@ -59,6 +59,40 @@ def add_festival(name, location, start_date, end_date, opening_time):
         raise FirebaseError(f"Could not save festival: {e}") from e
 
 
+def update_festival(festival_id, name, location, start_date, end_date, opening_time):
+    payload = {
+        "name": name,
+        "location": location,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "opening_time": opening_time,
+    }
+    token = _get_id_token()
+    try:
+        response = requests.put(
+            f"{DATABASE_URL}/festivals/{festival_id}.json",
+            params={"auth": token},
+            json=payload,
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise FirebaseError(f"Could not update festival: {e}") from e
+
+
+def delete_festival(festival_id):
+    token = _get_id_token()
+    try:
+        response = requests.delete(
+            f"{DATABASE_URL}/festivals/{festival_id}.json",
+            params={"auth": token},
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise FirebaseError(f"Could not delete festival: {e}") from e
+
+
 def get_all_festivals():
     token = _get_id_token()
     try:
@@ -75,8 +109,9 @@ def get_all_festivals():
 
     festivals = []
     if data:
-        for entry in data.values():
+        for key, entry in data.items():
             festivals.append({
+                "id": key,
                 "name": entry["name"],
                 "location": entry["location"],
                 "start_date": datetime.strptime(entry["start_date"], "%Y-%m-%d").date(),

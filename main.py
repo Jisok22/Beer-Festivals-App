@@ -41,6 +41,8 @@ class FestivalApp(App):
     def build(self):
         database.init_db()
 
+        self.editing_festival_id = None
+
         root = RootWidget()
 
         list_container = BoxLayout(orientation="vertical", padding=dp(10), spacing=dp(10))
@@ -92,7 +94,9 @@ class FestivalApp(App):
         )
         error_popup.open()
 
-    def open_add_popup(self, instance):
+    def open_add_popup(self, instance, festival=None):
+        self.editing_festival_id = festival["id"] if festival else None
+
         popup_layout = BoxLayout(orientation="vertical", spacing=dp(5), padding=dp(5))
 
         form = BoxLayout(
@@ -146,14 +150,41 @@ class FestivalApp(App):
         self.start_day.bind(text=self.update_end_date)
         self.start_month.bind(text=self.update_end_date)
         self.start_year.bind(text=self.update_end_date)
-        self.update_end_date()
 
         self.time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
         add_form_row("Opening time:", self.time_spinner, row_size_hint_y=0.8)
 
+        if festival:
+            # Pre-fill every field with the existing festival's details.
+            self.name_input.text = festival["name"]
+            self.location_input.text = festival["location"]
+
+            self.start_day.text = str(festival["start_date"].day)
+            self.start_month.text = MONTHS[festival["start_date"].month - 1]
+            self.start_year.text = str(festival["start_date"].year)
+
+            self.end_day.text = str(festival["end_date"].day)
+            self.end_month.text = MONTHS[festival["end_date"].month - 1]
+            self.end_year.text = str(festival["end_date"].year)
+
+            self.time_spinner.text = festival["opening_time"]
+
+            # Setting .active triggers toggle_one_day, which correctly
+            # disables the end-date spinners if this was a one-day event.
+            self.one_day_checkbox.active = (festival["start_date"] == festival["end_date"])
+        else:
+            self.update_end_date()
+
         popup_layout.add_widget(form)
 
         button_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+
+        if festival:
+            delete_button = Factory.CancelButton(text="Delete", font_size="14sp")
+            delete_button.bind(
+                on_press=lambda instance: self.show_delete_confirmation(festival["id"])
+            )
+            button_row.add_widget(delete_button)
 
         cancel_button = Factory.CancelButton(text="Cancel", font_size="14sp")
         button_row.add_widget(cancel_button)
@@ -164,14 +195,61 @@ class FestivalApp(App):
         popup_layout.add_widget(button_row)
 
         self.popup = Popup(
-            title="Add Festival",
+            title="Edit Festival" if festival else "Add Festival",
             content=popup_layout,
             size_hint=(0.9, 0.8),
         )
-        save_button.bind(on_press=self.add_festival)
+        save_button.bind(on_press=self.save_festival)
         cancel_button.bind(on_press=self.popup.dismiss)
 
         self.popup.open()
+
+    def show_delete_confirmation(self, festival_id):
+        confirm_layout = BoxLayout(orientation="vertical", spacing=dp(10), padding=dp(10))
+
+        message = Factory.StyledLabel(
+            text="Delete this festival? This can't be undone.",
+            halign="center",
+            valign="middle",
+        )
+        message.bind(size=message.setter("text_size"))
+        confirm_layout.add_widget(message)
+
+        button_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+
+        confirm_popup = Popup(
+            title="Confirm deletion",
+            content=confirm_layout,
+            size_hint=(0.8, 0.4),
+        )
+
+        cancel_button = Factory.CancelButton(text="Cancel", font_size="14sp")
+        cancel_button.bind(on_press=confirm_popup.dismiss)
+        button_row.add_widget(cancel_button)
+
+        confirm_button = Factory.RoundedButton(text="Confirm", font_size="14sp")
+        confirm_button.bind(
+            on_press=lambda instance: self.delete_festival(festival_id, confirm_popup)
+        )
+        button_row.add_widget(confirm_button)
+
+        confirm_layout.add_widget(button_row)
+
+        confirm_popup.open()
+
+    def delete_festival(self, festival_id, confirm_popup):
+        try:
+            database.delete_festival(festival_id)
+        except FirebaseError:
+            confirm_popup.dismiss()
+            self.show_error_popup(
+                "Couldn't delete the festival. Check your internet connection and try again."
+            )
+            return
+
+        confirm_popup.dismiss()
+        self.popup.dismiss()
+        self.refresh_list()
 
     def toggle_one_day(self, checkbox, is_active):
         self.end_day.disabled = is_active
@@ -196,7 +274,7 @@ class FestivalApp(App):
         self.end_month.text = MONTHS[end_date.month - 1]
         self.end_year.text = str(end_date.year)
 
-    def add_festival(self, instance):
+    def save_festival(self, instance):
         name = self.name_input.text.strip()
         location = self.location_input.text.strip()
 
@@ -226,7 +304,12 @@ class FestivalApp(App):
         opening_time = self.time_spinner.text
 
         try:
-            database.add_festival(name, location, start_date, end_date, opening_time)
+            if self.editing_festival_id:
+                database.update_festival(
+                    self.editing_festival_id, name, location, start_date, end_date, opening_time
+                )
+            else:
+                database.add_festival(name, location, start_date, end_date, opening_time)
         except FirebaseError:
             self.show_error_popup(
                 "Couldn't save the festival. Check your internet connection and try again."
@@ -258,14 +341,23 @@ class FestivalApp(App):
             top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(42))
 
             name_label = Factory.StyledLabel(
-                text=festival["name"],
+                text=f"{festival['name']} [size=11sp][color=#D2691E] edit[/color][/size]",
                 font_size="15sp",
                 bold=True,
                 halign="center",
                 valign="middle",
+                markup=True,
             )
             name_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+            name_label.bind(
+                on_touch_down=lambda label, touch, fest=festival: (
+                    self.open_add_popup(None, fest)
+                    if label.collide_point(*touch.pos)
+                    else False
+                )
+            )
             top_row.add_widget(name_label)
+
             card.add_widget(top_row)
 
             bottom_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(56))
