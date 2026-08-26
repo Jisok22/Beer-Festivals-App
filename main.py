@@ -4,6 +4,7 @@ import webbrowser
 import urllib.parse
 
 from kivy.app import App
+from kivy.clock import Clock
 from kivy.metrics import dp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.anchorlayout import AnchorLayout
@@ -19,6 +20,7 @@ from kivy.uix.checkbox import CheckBox
 from kivy.factory import Factory
 
 import database
+from database import FirebaseError
 
 DAYS = [str(d) for d in range(1, 32)]
 MONTHS = list(calendar.month_name)[1:]
@@ -72,9 +74,23 @@ class FestivalApp(App):
         add_button.bind(on_press=self.open_add_popup)
         root.add_widget(add_button)
 
-        self.refresh_list()
+        Clock.schedule_once(lambda dt: self.refresh_list())
 
         return root
+
+    def show_error_popup(self, message):
+        content = Factory.StyledLabel(
+            text=message,
+            halign="center",
+            valign="middle",
+        )
+        content.bind(size=content.setter("text_size"))
+        error_popup = Popup(
+            title="Something went wrong",
+            content=content,
+            size_hint=(0.8, 0.4),
+        )
+        error_popup.open()
 
     def open_add_popup(self, instance):
         popup_layout = BoxLayout(orientation="vertical", spacing=dp(5), padding=dp(5))
@@ -209,7 +225,13 @@ class FestivalApp(App):
 
         opening_time = self.time_spinner.text
 
-        database.add_festival(name, location, start_date, end_date, opening_time)
+        try:
+            database.add_festival(name, location, start_date, end_date, opening_time)
+        except FirebaseError:
+            self.show_error_popup(
+                "Couldn't save the festival. Check your internet connection and try again."
+            )
+            return
 
         self.refresh_list()
         self.popup.dismiss()
@@ -221,7 +243,15 @@ class FestivalApp(App):
 
     def refresh_list(self):
         self.list_layout.clear_widgets()
-        festivals = database.get_all_festivals()
+
+        try:
+            festivals = database.get_all_festivals()
+        except FirebaseError:
+            self.show_error_popup(
+                "Couldn't load the festival list. Check your internet connection and try again."
+            )
+            return
+
         for festival in festivals:
             card = Factory.FestivalCard(orientation="vertical", height=dp(100))
 

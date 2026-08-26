@@ -4,6 +4,34 @@ from datetime import datetime
 DATABASE_URL = "https://beer-festival-app-a8018-default-rtdb.europe-west1.firebasedatabase.app"
 FESTIVALS_ENDPOINT = f"{DATABASE_URL}/festivals.json"
 
+WEB_API_KEY = "AIzaSyBajf-s8X55lJ-GV2ro6mOFCx2kwLfPv7c"
+AUTH_ENDPOINT = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={WEB_API_KEY}"
+
+_id_token = None
+
+
+class FirebaseError(Exception):
+    """Raised whenever a Firebase request fails — network issue, auth
+    issue, or Firebase itself returning an error. Callers can catch
+    this specifically rather than a bare Exception."""
+    pass
+
+
+def _get_id_token():
+    """Signs in anonymously (once per app run) and caches the token
+    for subsequent requests."""
+    global _id_token
+    if _id_token is None:
+        try:
+            response = requests.post(
+                AUTH_ENDPOINT, json={"returnSecureToken": True}, timeout=10
+            )
+            response.raise_for_status()
+            _id_token = response.json()["idToken"]
+        except requests.exceptions.RequestException as e:
+            raise FirebaseError(f"Could not sign in to Firebase: {e}") from e
+    return _id_token
+
 
 def init_db():
     # No local setup needed — data lives in Firebase now, not on-device.
@@ -18,13 +46,31 @@ def add_festival(name, location, start_date, end_date, opening_time):
         "end_date": end_date.isoformat(),
         "opening_time": opening_time,
     }
-    response = requests.post(FESTIVALS_ENDPOINT, json=payload, timeout=10)
-    response.raise_for_status()
+    token = _get_id_token()
+    try:
+        response = requests.post(
+            FESTIVALS_ENDPOINT,
+            params={"auth": token},
+            json=payload,
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise FirebaseError(f"Could not save festival: {e}") from e
 
 
 def get_all_festivals():
-    response = requests.get(FESTIVALS_ENDPOINT, timeout=10)
-    response.raise_for_status()
+    token = _get_id_token()
+    try:
+        response = requests.get(
+            FESTIVALS_ENDPOINT,
+            params={"auth": token},
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise FirebaseError(f"Could not load festivals: {e}") from e
+
     data = response.json()
 
     festivals = []
