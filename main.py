@@ -56,8 +56,8 @@ class PullToRefreshScrollView(ScrollView):
             start_y = touch.ud.get("pull_start_y", touch.y)
             started_at_top = touch.ud.get("pull_started_at_top", False)
             
-            # Dragging downward (current Y minus start Y is positive)
-            if started_at_top and (touch.y - start_y) >= dp(60):
+            # Kivy's y-axis increases upward, so a downward drag decreases touch.y
+            if started_at_top and (start_y - touch.y) >= dp(60):
                 self._pull_triggered = True
 
         return super().on_touch_move(touch)
