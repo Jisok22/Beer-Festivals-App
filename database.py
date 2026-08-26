@@ -1,54 +1,42 @@
-import sqlite3
+import requests
 from datetime import datetime
 
-DB_FILE = "festivals.db"
+DATABASE_URL = "https://beer-festival-app-a8018-default-rtdb.europe-west1.firebasedatabase.app"
+FESTIVALS_ENDPOINT = f"{DATABASE_URL}/festivals.json"
 
 
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS festivals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            location TEXT,
-            start_date TEXT NOT NULL,
-            end_date TEXT NOT NULL,
-            opening_time TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+    # No local setup needed — data lives in Firebase now, not on-device.
+    pass
 
 
 def add_festival(name, location, start_date, end_date, opening_time):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute(
-        """INSERT INTO festivals (name, location, start_date, end_date, opening_time)
-           VALUES (?, ?, ?, ?, ?)""",
-        (name, location, start_date.isoformat(), end_date.isoformat(), opening_time),
-    )
-    conn.commit()
-    conn.close()
+    payload = {
+        "name": name,
+        "location": location,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "opening_time": opening_time,
+    }
+    response = requests.post(FESTIVALS_ENDPOINT, json=payload, timeout=10)
+    response.raise_for_status()
 
 
 def get_all_festivals():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT name, location, start_date, end_date, opening_time FROM festivals ORDER BY start_date"
-    )
-    rows = cursor.fetchall()
-    conn.close()
+    response = requests.get(FESTIVALS_ENDPOINT, timeout=10)
+    response.raise_for_status()
+    data = response.json()
 
     festivals = []
-    for name, location, start_text, end_text, opening_time in rows:
-        festivals.append({
-            "name": name,
-            "location": location,
-            "start_date": datetime.strptime(start_text, "%Y-%m-%d").date(),
-            "end_date": datetime.strptime(end_text, "%Y-%m-%d").date(),
-            "opening_time": opening_time,
-        })
+    if data:
+        for entry in data.values():
+            festivals.append({
+                "name": entry["name"],
+                "location": entry["location"],
+                "start_date": datetime.strptime(entry["start_date"], "%Y-%m-%d").date(),
+                "end_date": datetime.strptime(entry["end_date"], "%Y-%m-%d").date(),
+                "opening_time": entry["opening_time"],
+            })
+
+    festivals.sort(key=lambda f: f["start_date"])
     return festivals
