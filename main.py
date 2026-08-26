@@ -37,6 +37,32 @@ class RootWidget(FloatLayout):
     pass
 
 
+class PullToRefreshScrollView(ScrollView):
+    def __init__(self, refresh_callback=None, **kwargs):
+        super().__init__(**kwargs)
+        self.refresh_callback = refresh_callback
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            touch.ud["pull_start_y"] = touch.y
+            touch.ud["pull_started_at_top"] = self.scroll_y >= 0.999
+        return super().on_touch_down(touch)
+
+    def on_touch_up(self, touch):
+        start_y = touch.ud.get("pull_start_y")
+        started_at_top = touch.ud.get("pull_started_at_top", False)
+        should_refresh = (
+            start_y is not None
+            and started_at_top
+            and touch.y - start_y >= dp(80)
+        )
+
+        handled = super().on_touch_up(touch)
+        if should_refresh and self.refresh_callback:
+            Clock.schedule_once(lambda dt: self.refresh_callback(), 0)
+        return handled
+
+
 class FestivalApp(App):
     def build(self):
         database.init_db()
@@ -61,7 +87,7 @@ class FestivalApp(App):
         self.list_layout = GridLayout(cols=1, size_hint_y=None, spacing=dp(8))
         self.list_layout.bind(minimum_height=self.list_layout.setter("height"))
 
-        scroll = ScrollView()
+        scroll = PullToRefreshScrollView(refresh_callback=self.refresh_list)
         scroll.add_widget(self.list_layout)
         list_container.add_widget(scroll)
 
@@ -189,7 +215,7 @@ class FestivalApp(App):
         cancel_button = Factory.CancelButton(text="Cancel", font_size="14sp")
         button_row.add_widget(cancel_button)
 
-        save_button = Factory.RoundedButton(text="Save Festival", font_size="14sp")
+        save_button = Factory.RoundedButton(text="Save", font_size="14sp")
         button_row.add_widget(save_button)
 
         popup_layout.add_widget(button_row)
