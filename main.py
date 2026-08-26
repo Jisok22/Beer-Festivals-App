@@ -37,6 +37,17 @@ class RootWidget(FloatLayout):
     pass
 
 
+def add_form_row(form, label_text, field, row_size_hint_y=1):
+    row = BoxLayout(spacing=dp(0), size_hint_y=row_size_hint_y)
+    label = Factory.StyledLabel(text=label_text, font_size="13sp", size_hint_x=0.33)
+    label.valign = "middle"
+    label.bind(size=label.setter("text_size"))
+    row.add_widget(label)
+    field.size_hint = (0.67, 0.8)
+    row.add_widget(field)
+    form.add_widget(row)
+
+
 class PullToRefreshScrollView(ScrollView):
     def __init__(self, refresh_callback=None, **kwargs):
         super().__init__(**kwargs)
@@ -82,6 +93,8 @@ class FestivalApp(App):
         database.init_db()
 
         self.editing_festival_id = None
+        self.editing_resource_id = None
+        self.active_tab = "current"
 
         root = RootWidget()
 
@@ -105,6 +118,11 @@ class FestivalApp(App):
         scroll.add_widget(self.list_layout)
         list_container.add_widget(scroll)
 
+        self.nav_bar = BoxLayout(
+            orientation="horizontal", size_hint_y=None, height=dp(48), spacing=dp(8)
+        )
+        list_container.add_widget(self.nav_bar)
+
         root.add_widget(list_container)
 
         add_button = Factory.FloatingAddButton(
@@ -113,12 +131,42 @@ class FestivalApp(App):
             size=(dp(38.4), dp(38.4)),
             pos_hint={"right": 0.95, "top": 0.98},
         )
-        add_button.bind(on_press=self.open_add_popup)
+        add_button.bind(on_press=self.handle_add_button)
         root.add_widget(add_button)
 
+        self.refresh_nav_bar()
         Clock.schedule_once(lambda dt: self.refresh_list())
 
         return root
+
+    def handle_add_button(self, instance):
+        if self.active_tab == "resources":
+            self.open_add_resource_popup()
+        else:
+            self.open_add_popup(instance)
+
+    def switch_tab(self, tab_name):
+        if tab_name == self.active_tab:
+            return
+        self.active_tab = tab_name
+        self.refresh_nav_bar()
+        self.refresh_list()
+
+    def refresh_nav_bar(self):
+        self.nav_bar.clear_widgets()
+
+        tabs = [
+            ("current", "Upcoming"),
+            ("previous", "Previous"),
+            ("resources", "Resources"),
+        ]
+        for tab_name, label in tabs:
+            is_active = tab_name == self.active_tab
+            nav_button = (Factory.RoundedButton if is_active else Factory.CancelButton)(
+                text=label, font_size="12sp"
+            )
+            nav_button.bind(on_press=lambda instance, name=tab_name: self.switch_tab(name))
+            self.nav_bar.add_widget(nav_button)
 
     def show_error_popup(self, message):
         content = Factory.StyledLabel(
@@ -144,24 +192,17 @@ class FestivalApp(App):
             spacing=dp(4),
             padding=dp(10),
             size_hint_y=None,
-            height=dp(380),
+            height=dp(450),
         )
 
-        def add_form_row(label_text, field, row_size_hint_y=1):
-            row = BoxLayout(spacing=dp(0), size_hint_y=row_size_hint_y)
-            label = Factory.StyledLabel(text=label_text, font_size="13sp", size_hint_x=0.33)
-            label.valign = "middle"
-            label.bind(size=label.setter("text_size"))
-            row.add_widget(label)
-            field.size_hint = (0.67, 0.8)
-            row.add_widget(field)
-            form.add_widget(row)
-
         self.name_input = Factory.StyledTextInput(multiline=True)
-        add_form_row("Name:", self.name_input)
+        add_form_row(form, "Name:", self.name_input)
 
         self.location_input = Factory.StyledTextInput(multiline=True)
-        add_form_row("Location /\nAddress:", self.location_input)
+        add_form_row(form, "Location /\nAddress:", self.location_input)
+
+        self.website_input = Factory.StyledTextInput(multiline=False)
+        add_form_row(form, "Website:", self.website_input)
 
         start_row = BoxLayout(spacing=dp(5))
         self.start_day = Spinner(text=DAYS[0], values=DAYS, font_size="11sp")
@@ -170,13 +211,13 @@ class FestivalApp(App):
         start_row.add_widget(self.start_day)
         start_row.add_widget(self.start_month)
         start_row.add_widget(self.start_year)
-        add_form_row("Start date:", start_row, row_size_hint_y=0.8)
+        add_form_row(form, "Start date:", start_row, row_size_hint_y=0.8)
 
         self.one_day_checkbox = CheckBox(size_hint=(None, None), size=(dp(30), dp(30)))
         self.one_day_checkbox.bind(active=self.toggle_one_day)
         checkbox_row = AnchorLayout(anchor_x="left", anchor_y="center")
         checkbox_row.add_widget(self.one_day_checkbox)
-        add_form_row("One day only:", checkbox_row, row_size_hint_y=0.8)
+        add_form_row(form, "One day only:", checkbox_row, row_size_hint_y=0.8)
 
         end_row = BoxLayout(spacing=dp(5))
         self.end_day = Spinner(text=DAYS[0], values=DAYS, font_size="11sp")
@@ -185,19 +226,20 @@ class FestivalApp(App):
         end_row.add_widget(self.end_day)
         end_row.add_widget(self.end_month)
         end_row.add_widget(self.end_year)
-        add_form_row("End date:", end_row, row_size_hint_y=0.8)
+        add_form_row(form, "End date:", end_row, row_size_hint_y=0.8)
 
         self.start_day.bind(text=self.update_end_date)
         self.start_month.bind(text=self.update_end_date)
         self.start_year.bind(text=self.update_end_date)
 
         self.time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
-        add_form_row("Opening time:", self.time_spinner, row_size_hint_y=0.8)
+        add_form_row(form, "Opening time:", self.time_spinner, row_size_hint_y=0.8)
 
         if festival:
             # Pre-fill every field with the existing festival's details.
             self.name_input.text = festival["name"]
             self.location_input.text = festival["location"]
+            self.website_input.text = festival.get("website", "")
 
             self.start_day.text = str(festival["start_date"].day)
             self.start_month.text = MONTHS[festival["start_date"].month - 1]
@@ -222,7 +264,10 @@ class FestivalApp(App):
         if festival:
             delete_button = Factory.CancelButton(text="Delete", font_size="14sp")
             delete_button.bind(
-                on_press=lambda instance: self.show_delete_confirmation(festival["id"])
+                on_press=lambda instance: self.show_delete_confirmation(
+                    "Delete this festival? This can't be undone.",
+                    lambda confirm_popup: self.delete_festival(festival["id"], confirm_popup),
+                )
             )
             button_row.add_widget(delete_button)
 
@@ -244,11 +289,11 @@ class FestivalApp(App):
 
         self.popup.open()
 
-    def show_delete_confirmation(self, festival_id):
+    def show_delete_confirmation(self, message_text, delete_action):
         confirm_layout = BoxLayout(orientation="vertical", spacing=dp(10), padding=dp(10))
 
         message = Factory.StyledLabel(
-            text="Delete this festival? This can't be undone.",
+            text=message_text,
             halign="center",
             valign="middle",
         )
@@ -268,9 +313,7 @@ class FestivalApp(App):
         button_row.add_widget(cancel_button)
 
         confirm_button = Factory.RoundedButton(text="Confirm", font_size="14sp")
-        confirm_button.bind(
-            on_press=lambda instance: self.delete_festival(festival_id, confirm_popup)
-        )
+        confirm_button.bind(on_press=lambda instance: delete_action(confirm_popup))
         button_row.add_widget(confirm_button)
 
         confirm_layout.add_widget(button_row)
@@ -317,6 +360,7 @@ class FestivalApp(App):
     def save_festival(self, instance):
         name = self.name_input.text.strip()
         location = self.location_input.text.strip()
+        website = self.website_input.text.strip()
 
         if not name:
             return
@@ -346,10 +390,16 @@ class FestivalApp(App):
         try:
             if self.editing_festival_id:
                 database.update_festival(
-                    self.editing_festival_id, name, location, start_date, end_date, opening_time
+                    self.editing_festival_id,
+                    name,
+                    location,
+                    start_date,
+                    end_date,
+                    opening_time,
+                    website,
                 )
             else:
-                database.add_festival(name, location, start_date, end_date, opening_time)
+                database.add_festival(name, location, start_date, end_date, opening_time, website)
         except FirebaseError:
             self.show_error_popup(
                 "Couldn't save the festival. Check your internet connection and try again."
@@ -359,13 +409,123 @@ class FestivalApp(App):
         self.refresh_list()
         self.popup.dismiss()
 
+    def open_add_resource_popup(self, instance=None, resource=None):
+        self.editing_resource_id = resource["id"] if resource else None
+
+        popup_layout = BoxLayout(orientation="vertical", spacing=dp(5), padding=dp(5))
+
+        form = BoxLayout(
+            orientation="vertical",
+            spacing=dp(4),
+            padding=dp(10),
+            size_hint_y=None,
+            height=dp(140),
+        )
+
+        self.resource_name_input = Factory.StyledTextInput(multiline=False)
+        add_form_row(form, "Name:", self.resource_name_input)
+
+        self.resource_url_input = Factory.StyledTextInput(multiline=False)
+        add_form_row(form, "Website:", self.resource_url_input)
+
+        if resource:
+            self.resource_name_input.text = resource["name"]
+            self.resource_url_input.text = resource["url"]
+
+        popup_layout.add_widget(form)
+
+        button_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+
+        if resource:
+            delete_button = Factory.CancelButton(text="Delete", font_size="14sp")
+            delete_button.bind(
+                on_press=lambda instance: self.show_delete_confirmation(
+                    "Delete this resource? This can't be undone.",
+                    lambda confirm_popup: self.delete_resource(resource["id"], confirm_popup),
+                )
+            )
+            button_row.add_widget(delete_button)
+
+        cancel_button = Factory.CancelButton(text="Cancel", font_size="14sp")
+        button_row.add_widget(cancel_button)
+
+        save_button = Factory.RoundedButton(text="Save", font_size="14sp")
+        button_row.add_widget(save_button)
+
+        popup_layout.add_widget(button_row)
+
+        self.popup = Popup(
+            title="Edit Resource" if resource else "Add Resource",
+            content=popup_layout,
+            size_hint=(0.9, 0.5),
+        )
+        save_button.bind(on_press=self.save_resource)
+        cancel_button.bind(on_press=self.popup.dismiss)
+
+        self.popup.open()
+
+    def save_resource(self, instance):
+        name = self.resource_name_input.text.strip()
+        url = self.resource_url_input.text.strip()
+
+        if not name or not url:
+            return
+
+        try:
+            if self.editing_resource_id:
+                database.update_resource(self.editing_resource_id, name, url)
+            else:
+                database.add_resource(name, url)
+        except FirebaseError:
+            self.show_error_popup(
+                "Couldn't save the resource. Check your internet connection and try again."
+            )
+            return
+
+        self.refresh_list()
+        self.popup.dismiss()
+
+    def delete_resource(self, resource_id, confirm_popup):
+        try:
+            database.delete_resource(resource_id)
+        except FirebaseError:
+            confirm_popup.dismiss()
+            self.show_error_popup(
+                "Couldn't delete the resource. Check your internet connection and try again."
+            )
+            return
+
+        confirm_popup.dismiss()
+        self.popup.dismiss()
+        self.refresh_list()
+
     def open_in_maps(self, location_text):
         query = urllib.parse.quote(location_text)
         url = f"https://www.google.com/maps/search/?api=1&query={query}"
         webbrowser.open(url)
 
+    def open_website(self, url):
+        if not url:
+            return
+        if not url.lower().startswith(("http://", "https://")):
+            url = f"https://{url}"
+        webbrowser.open(url)
+
     def refresh_list(self):
         self.list_layout.clear_widgets()
+
+        if self.active_tab == "resources":
+            try:
+                resources = database.get_all_resources()
+            except FirebaseError:
+                self.show_error_popup(
+                    "Couldn't load resources. Check your internet connection and try again."
+                )
+                return
+
+            for resource in resources:
+                self.list_layout.add_widget(self.build_resource_card(resource))
+            return
 
         try:
             festivals = database.get_all_festivals()
@@ -375,100 +535,159 @@ class FestivalApp(App):
             )
             return
 
+        today = date.today()
+        if self.active_tab == "previous":
+            festivals = [f for f in festivals if f["end_date"] < today]
+            festivals.sort(key=lambda f: f["start_date"], reverse=True)
+        else:
+            festivals = [f for f in festivals if f["end_date"] >= today]
+
         for festival in festivals:
-            card = Factory.FestivalCard(orientation="vertical", height=dp(117))
+            self.list_layout.add_widget(self.build_festival_card(festival))
 
-            top_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(42))
+    def build_resource_card(self, resource):
+        card = Factory.FestivalCard(orientation="horizontal", height=dp(56))
 
-            name_label = Factory.StyledLabel(
-                text=f"{festival['name']} [size=11sp][color=#D2691E] edit[/color][/size]",
-                font_size="15sp",
-                bold=True,
-                halign="center",
-                valign="middle",
-                markup=True,
+        name_label = Factory.StyledLabel(
+            text=f"{resource['name']} [size=11sp][color=#D2691E] edit[/color][/size]",
+            font_size="14sp",
+            bold=True,
+            halign="left",
+            valign="middle",
+            markup=True,
+        )
+        name_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+        name_label.bind(
+            on_touch_down=lambda label, touch, res=resource: (
+                self.open_add_resource_popup(None, res)
+                if label.collide_point(*touch.pos)
+                else False
             )
-            name_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
-            name_label.bind(
-                on_touch_down=lambda label, touch, fest=festival: (
-                    self.open_add_popup(None, fest)
-                    if label.collide_point(*touch.pos)
-                    else False
-                )
+        )
+        card.add_widget(name_label)
+
+        link_icon = Factory.LinkIcon(
+            text="Link",
+            size_hint=(None, None),
+            size=(dp(40), dp(28)),
+            pos_hint={"center_y": 0.5},
+        )
+        link_icon.bind(on_press=lambda instance, url=resource["url"]: self.open_website(url))
+        card.add_widget(link_icon)
+
+        return card
+
+    def build_festival_card(self, festival):
+        card = Factory.FestivalCard(orientation="vertical", height=dp(117))
+
+        top_row = BoxLayout(
+            orientation="horizontal", size_hint_y=None, height=dp(42), spacing=dp(6)
+        )
+
+        link_icon = Factory.LinkIcon(
+            text="Link",
+            size_hint=(None, None),
+            size=(dp(40), dp(28)),
+            pos_hint={"center_y": 0.5},
+        )
+        if festival["website"]:
+            link_icon.bind(
+                on_press=lambda instance, url=festival["website"]: self.open_website(url)
             )
-            top_row.add_widget(name_label)
+        else:
+            link_icon.disabled = True
+            link_icon.opacity = 0.3
+        top_row.add_widget(link_icon)
 
-            card.add_widget(top_row)
-
-            bottom_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(56))
-
-            # --- Bottom-left column: date range + opening time ---
-            date_column = BoxLayout(orientation="vertical", size_hint_x=0.33)
-
-            date_range_text = (
-                f"{festival['start_date'].strftime('%a %d %b %Y')} to "
-                f"\n{festival['end_date'].strftime('%a %d %b %Y')}"
+        name_label = Factory.StyledLabel(
+            text=f"{festival['name']} [size=11sp][color=#D2691E] edit[/color][/size]",
+            font_size="15sp",
+            bold=True,
+            halign="center",
+            valign="middle",
+            markup=True,
+        )
+        name_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+        name_label.bind(
+            on_touch_down=lambda label, touch, fest=festival: (
+                self.open_add_popup(None, fest)
+                if label.collide_point(*touch.pos)
+                else False
             )
-            date_label = Factory.StyledLabel(
-                text=date_range_text,
-                font_size="10sp",
-                bold=True,
-                halign="left",
-                valign="middle",
-                size_hint_y=None,
-                height=dp(36),
-            )
-            date_label.bind(size=date_label.setter("text_size"))
-            date_column.add_widget(date_label)
+        )
+        top_row.add_widget(name_label)
 
-            time_label = Factory.StyledLabel(
-                text=f"Opens at {festival['opening_time']}",
-                font_size="10sp",
-                halign="left",
-                valign="middle",
-                size_hint_y=None,
-                height=dp(20),
-            )
-            time_label.bind(size=time_label.setter("text_size"))
-            date_column.add_widget(time_label)
+        card.add_widget(top_row)
 
-            bottom_row.add_widget(date_column)
+        bottom_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(56))
 
-            # --- Bottom-middle column: wrapped address ---
-            location_label = Factory.StyledLabel(
-                text=festival["location"],
-                font_size="10sp",
-                halign="center",
-                valign="middle",
-                size_hint_x=0.47,
-                text_size=(0, None),
-            )
-            location_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
-            location_label.bind(texture_size=lambda label, size: setattr(label, "height", size[1]))
-            bottom_row.add_widget(location_label)
+        # --- Bottom-left column: date range + opening time ---
+        date_column = BoxLayout(orientation="vertical", size_hint_x=0.33)
 
-            # --- Bottom-right column: right-aligned Google Maps button ---
-            maps_container = AnchorLayout(
-                anchor_x="right",
-                anchor_y="center",
-                size_hint_x=0.20,
-                size_hint_min_x=dp(56),
-            )
-            maps_button = Factory.RoundedButton(
-                text="Google\nMaps",
-                font_size="10sp",
-                halign="center",
-                size_hint_x=None,
-                width=dp(56),
-            )
-            maps_button.bind(
-                on_press=lambda instance, loc=festival["location"]: self.open_in_maps(loc)
-            )
-            maps_container.add_widget(maps_button)
-            bottom_row.add_widget(maps_container)
-            card.add_widget(bottom_row)
+        date_range_text = (
+            f"{festival['start_date'].strftime('%a %d %b %Y')} to "
+            f"\n{festival['end_date'].strftime('%a %d %b %Y')}"
+        )
+        date_label = Factory.StyledLabel(
+            text=date_range_text,
+            font_size="10sp",
+            bold=True,
+            halign="left",
+            valign="middle",
+            size_hint_y=None,
+            height=dp(36),
+        )
+        date_label.bind(size=date_label.setter("text_size"))
+        date_column.add_widget(date_label)
 
-            self.list_layout.add_widget(card)
+        time_label = Factory.StyledLabel(
+            text=f"Opens at {festival['opening_time']}",
+            font_size="10sp",
+            halign="left",
+            valign="middle",
+            size_hint_y=None,
+            height=dp(20),
+        )
+        time_label.bind(size=time_label.setter("text_size"))
+        date_column.add_widget(time_label)
+
+        bottom_row.add_widget(date_column)
+
+        # --- Bottom-middle column: wrapped address ---
+        location_label = Factory.StyledLabel(
+            text=festival["location"],
+            font_size="10sp",
+            halign="center",
+            valign="middle",
+            size_hint_x=0.47,
+            text_size=(0, None),
+        )
+        location_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+        location_label.bind(texture_size=lambda label, size: setattr(label, "height", size[1]))
+        bottom_row.add_widget(location_label)
+
+        # --- Bottom-right column: right-aligned Google Maps button ---
+        maps_container = AnchorLayout(
+            anchor_x="right",
+            anchor_y="center",
+            size_hint_x=0.20,
+            size_hint_min_x=dp(56),
+        )
+        maps_button = Factory.RoundedButton(
+            text="Google\nMaps",
+            font_size="10sp",
+            halign="center",
+            size_hint_x=None,
+            width=dp(56),
+        )
+        maps_button.bind(
+            on_press=lambda instance, loc=festival["location"]: self.open_in_maps(loc)
+        )
+        maps_container.add_widget(maps_button)
+        bottom_row.add_widget(maps_container)
+        card.add_widget(bottom_row)
+
+        return card
 
 
 if __name__ == "__main__":

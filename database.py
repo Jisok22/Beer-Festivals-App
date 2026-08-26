@@ -3,6 +3,7 @@ from datetime import datetime
 
 DATABASE_URL = "https://beer-festival-app-a8018-default-rtdb.europe-west1.firebasedatabase.app"
 FESTIVALS_ENDPOINT = f"{DATABASE_URL}/festivals.json"
+RESOURCES_ENDPOINT = f"{DATABASE_URL}/resources.json"
 
 WEB_API_KEY = "AIzaSyBajf-s8X55lJ-GV2ro6mOFCx2kwLfPv7c"
 AUTH_ENDPOINT = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={WEB_API_KEY}"
@@ -38,13 +39,14 @@ def init_db():
     pass
 
 
-def add_festival(name, location, start_date, end_date, opening_time):
+def add_festival(name, location, start_date, end_date, opening_time, website=""):
     payload = {
         "name": name,
         "location": location,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "opening_time": opening_time,
+        "website": website,
     }
     token = _get_id_token()
     try:
@@ -59,13 +61,14 @@ def add_festival(name, location, start_date, end_date, opening_time):
         raise FirebaseError(f"Could not save festival: {e}") from e
 
 
-def update_festival(festival_id, name, location, start_date, end_date, opening_time):
+def update_festival(festival_id, name, location, start_date, end_date, opening_time, website=""):
     payload = {
         "name": name,
         "location": location,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "opening_time": opening_time,
+        "website": website,
     }
     token = _get_id_token()
     try:
@@ -117,7 +120,78 @@ def get_all_festivals():
                 "start_date": datetime.strptime(entry["start_date"], "%Y-%m-%d").date(),
                 "end_date": datetime.strptime(entry["end_date"], "%Y-%m-%d").date(),
                 "opening_time": entry["opening_time"],
+                "website": entry.get("website", ""),
             })
 
     festivals.sort(key=lambda f: f["start_date"])
     return festivals
+
+
+def add_resource(name, url):
+    payload = {"name": name, "url": url}
+    token = _get_id_token()
+    try:
+        response = requests.post(
+            RESOURCES_ENDPOINT,
+            params={"auth": token},
+            json=payload,
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise FirebaseError(f"Could not save resource: {e}") from e
+
+
+def update_resource(resource_id, name, url):
+    payload = {"name": name, "url": url}
+    token = _get_id_token()
+    try:
+        response = requests.put(
+            f"{DATABASE_URL}/resources/{resource_id}.json",
+            params={"auth": token},
+            json=payload,
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise FirebaseError(f"Could not update resource: {e}") from e
+
+
+def delete_resource(resource_id):
+    token = _get_id_token()
+    try:
+        response = requests.delete(
+            f"{DATABASE_URL}/resources/{resource_id}.json",
+            params={"auth": token},
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise FirebaseError(f"Could not delete resource: {e}") from e
+
+
+def get_all_resources():
+    token = _get_id_token()
+    try:
+        response = requests.get(
+            RESOURCES_ENDPOINT,
+            params={"auth": token},
+            timeout=10,
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise FirebaseError(f"Could not load resources: {e}") from e
+
+    data = response.json()
+
+    resources = []
+    if data:
+        for key, entry in data.items():
+            resources.append({
+                "id": key,
+                "name": entry["name"],
+                "url": entry["url"],
+            })
+
+    resources.sort(key=lambda r: r["name"].lower())
+    return resources
