@@ -235,6 +235,9 @@ class FestivalApp(App):
         self.time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
         add_form_row(form, "Opening time:", self.time_spinner, row_size_hint_y=0.8)
 
+        form_scroll = ScrollView(size_hint=(1, 1))
+        form_scroll.add_widget(form)
+
         if festival:
             # Pre-fill every field with the existing festival's details.
             self.name_input.text = festival["name"]
@@ -257,7 +260,7 @@ class FestivalApp(App):
         else:
             self.update_end_date()
 
-        popup_layout.add_widget(form)
+        popup_layout.add_widget(form_scroll)
 
         button_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
 
