@@ -70,6 +70,22 @@ This is the routine for making a change and testing it on your phone:
 4. Watch your phone screen and tap **Install** on the confirmation
    prompt that appears.
 
+## Database
+
+Using Google Firebase for the database
+
+[https://console.firebase.google.com/](https://console.firebase.google.com/)
+
+`Realtime Database` > `Data`
+
+Import and export the json data using the 3 dots menu
+
+Generate a new GUID in console with:
+
+```
+[guid]::NewGuid().ToString()
+```
+
 ## Quick resume (if a build was interrupted)
 
 1. Open **Ubuntu** from the Windows Start menu (WSL persists across
