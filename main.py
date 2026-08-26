@@ -46,16 +46,21 @@ class PullToRefreshScrollView(ScrollView):
         if self.collide_point(*touch.pos):
             touch.ud["pull_start_y"] = touch.y
             touch.ud["pull_started_at_top"] = self.scroll_y >= 0.999
+            touch.ud["pull_threshold_reached"] = False
         return super().on_touch_down(touch)
 
-    def on_touch_up(self, touch):
+    def on_touch_move(self, touch):
         start_y = touch.ud.get("pull_start_y")
-        started_at_top = touch.ud.get("pull_started_at_top", False)
-        should_refresh = (
+        if (
             start_y is not None
-            and started_at_top
-            and touch.y - start_y >= dp(80)
-        )
+            and touch.ud.get("pull_started_at_top", False)
+            and touch.y - start_y >= dp(48)
+        ):
+            touch.ud["pull_threshold_reached"] = True
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        should_refresh = touch.ud.get("pull_threshold_reached", False)
 
         handled = super().on_touch_up(touch)
         if should_refresh and self.refresh_callback:
