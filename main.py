@@ -192,7 +192,7 @@ class FestivalApp(App):
             spacing=dp(4),
             padding=dp(10),
             size_hint_y=None,
-            height=dp(450),
+            height=dp(525),
         )
 
         self.name_input = Factory.StyledTextInput(multiline=True)
@@ -232,8 +232,18 @@ class FestivalApp(App):
         self.start_month.bind(text=self.update_end_date)
         self.start_year.bind(text=self.update_end_date)
 
-        self.time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
-        add_form_row(form, "Opening time:", self.time_spinner, row_size_hint_y=0.8)
+        times_row = BoxLayout(spacing=dp(5))
+        self.open_time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
+        self.close_time_spinner = Spinner(text=TIMES[-1], values=TIMES, font_size="11sp")
+        times_row.add_widget(self.open_time_spinner)
+        times_row.add_widget(self.close_time_spinner)
+        add_form_row(form, "Open / Close:", times_row, row_size_hint_y=0.8)
+
+        self.varies_by_day_checkbox = CheckBox(size_hint=(None, None), size=(dp(30), dp(30)))
+        self.varies_by_day_checkbox.bind(active=self.toggle_varies_by_day)
+        varies_row = AnchorLayout(anchor_x="left", anchor_y="center")
+        varies_row.add_widget(self.varies_by_day_checkbox)
+        add_form_row(form, "Different times\neach day:", varies_row, row_size_hint_y=0.8)
 
         form_scroll = ScrollView(size_hint=(1, 1))
         form_scroll.add_widget(form)
@@ -252,11 +262,15 @@ class FestivalApp(App):
             self.end_month.text = MONTHS[festival["end_date"].month - 1]
             self.end_year.text = str(festival["end_date"].year)
 
-            self.time_spinner.text = festival["opening_time"]
+            if festival["opening_time"]:
+                self.open_time_spinner.text = festival["opening_time"]
+            if festival["closing_time"]:
+                self.close_time_spinner.text = festival["closing_time"]
 
-            # Setting .active triggers toggle_one_day, which correctly
-            # disables the end-date spinners if this was a one-day event.
+            # Setting .active triggers toggle_one_day / toggle_varies_by_day, which
+            # correctly disable the end-date and time spinners respectively.
             self.one_day_checkbox.active = (festival["start_date"] == festival["end_date"])
+            self.varies_by_day_checkbox.active = festival["varies_by_day"]
         else:
             self.update_end_date()
 
@@ -342,6 +356,10 @@ class FestivalApp(App):
         self.end_month.disabled = is_active
         self.end_year.disabled = is_active
 
+    def toggle_varies_by_day(self, checkbox, is_active):
+        self.open_time_spinner.disabled = is_active
+        self.close_time_spinner.disabled = is_active
+
     def update_end_date(self, *_):
         try:
             start_date = date(
@@ -388,7 +406,9 @@ class FestivalApp(App):
         if end_date < start_date:
             return
 
-        opening_time = self.time_spinner.text
+        varies_by_day = self.varies_by_day_checkbox.active
+        opening_time = "" if varies_by_day else self.open_time_spinner.text
+        closing_time = "" if varies_by_day else self.close_time_spinner.text
 
         try:
             if self.editing_festival_id:
@@ -399,10 +419,21 @@ class FestivalApp(App):
                     start_date,
                     end_date,
                     opening_time,
+                    closing_time,
+                    varies_by_day,
                     website,
                 )
             else:
-                database.add_festival(name, location, start_date, end_date, opening_time, website)
+                database.add_festival(
+                    name,
+                    location,
+                    start_date,
+                    end_date,
+                    opening_time,
+                    closing_time,
+                    varies_by_day,
+                    website,
+                )
         except FirebaseError:
             self.show_error_popup(
                 "Couldn't save the festival. Check your internet connection and try again."
@@ -643,8 +674,13 @@ class FestivalApp(App):
         date_label.bind(size=date_label.setter("text_size"))
         date_column.add_widget(date_label)
 
+        if festival["varies_by_day"]:
+            time_text = "Times vary by day - see website"
+        else:
+            time_text = f"{festival['opening_time']} - {festival['closing_time']}"
+
         time_label = Factory.StyledLabel(
-            text=f"Opens at {festival['opening_time']}",
+            text=time_text,
             font_size="10sp",
             halign="left",
             valign="middle",

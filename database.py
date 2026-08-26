@@ -39,13 +39,17 @@ def init_db():
     pass
 
 
-def add_festival(name, location, start_date, end_date, opening_time, website=""):
+def add_festival(
+    name, location, start_date, end_date, opening_time, closing_time, varies_by_day, website=""
+):
     payload = {
         "name": name,
         "location": location,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "opening_time": opening_time,
+        "closing_time": closing_time,
+        "varies_by_day": varies_by_day,
         "website": website,
     }
     token = _get_id_token()
@@ -61,13 +65,25 @@ def add_festival(name, location, start_date, end_date, opening_time, website="")
         raise FirebaseError(f"Could not save festival: {e}") from e
 
 
-def update_festival(festival_id, name, location, start_date, end_date, opening_time, website=""):
+def update_festival(
+    festival_id,
+    name,
+    location,
+    start_date,
+    end_date,
+    opening_time,
+    closing_time,
+    varies_by_day,
+    website="",
+):
     payload = {
         "name": name,
         "location": location,
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
         "opening_time": opening_time,
+        "closing_time": closing_time,
+        "varies_by_day": varies_by_day,
         "website": website,
     }
     token = _get_id_token()
@@ -120,6 +136,8 @@ def get_all_festivals():
                 "start_date": datetime.strptime(entry["start_date"], "%Y-%m-%d").date(),
                 "end_date": datetime.strptime(entry["end_date"], "%Y-%m-%d").date(),
                 "opening_time": entry["opening_time"],
+                "closing_time": entry.get("closing_time", ""),
+                "varies_by_day": entry.get("varies_by_day", False),
                 "website": entry.get("website", ""),
             })
 
