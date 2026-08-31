@@ -40,7 +40,15 @@ def init_db():
 
 
 def add_festival(
-    name, location, start_date, end_date, opening_time, closing_time, varies_by_day, website=""
+    name,
+    location,
+    start_date,
+    end_date,
+    opening_time,
+    closing_time,
+    varies_by_day,
+    day_times=None,
+    website="",
 ):
     payload = {
         "name": name,
@@ -50,6 +58,7 @@ def add_festival(
         "opening_time": opening_time,
         "closing_time": closing_time,
         "varies_by_day": varies_by_day,
+        "day_times": day_times or {},
         "website": website,
     }
     token = _get_id_token()
@@ -74,6 +83,7 @@ def update_festival(
     opening_time,
     closing_time,
     varies_by_day,
+    day_times=None,
     website="",
 ):
     payload = {
@@ -84,6 +94,7 @@ def update_festival(
         "opening_time": opening_time,
         "closing_time": closing_time,
         "varies_by_day": varies_by_day,
+        "day_times": day_times or {},
         "website": website,
     }
     token = _get_id_token()
@@ -138,6 +149,7 @@ def get_all_festivals():
                 "opening_time": entry["opening_time"],
                 "closing_time": entry.get("closing_time", ""),
                 "varies_by_day": entry.get("varies_by_day", False),
+                "day_times": entry.get("day_times", {}),
                 "website": entry.get("website", ""),
             })
 

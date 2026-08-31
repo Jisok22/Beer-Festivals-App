@@ -37,13 +37,15 @@ class RootWidget(FloatLayout):
     pass
 
 
-def add_form_row(form, label_text, field, row_size_hint_y=1):
-    row = BoxLayout(spacing=dp(0), size_hint_y=row_size_hint_y)
+def add_form_row(form, label_text, field, row_height=None):
+    row_height = row_height if row_height is not None else dp(44)
+    row = BoxLayout(spacing=dp(0), size_hint_y=None, height=row_height)
     label = Factory.StyledLabel(text=label_text, font_size="13sp", size_hint_x=0.33)
     label.valign = "middle"
     label.bind(size=label.setter("text_size"))
     row.add_widget(label)
-    field.size_hint = (0.67, 0.8)
+    field.size_hint = (0.67, None)
+    field.height = row_height
     row.add_widget(field)
     form.add_widget(row)
 
@@ -93,8 +95,10 @@ class FestivalApp(App):
         database.init_db()
 
         self.editing_festival_id = None
+        self.editing_festival = None
         self.editing_resource_id = None
         self.active_tab = "current"
+        self.viewing_festival = None
 
         root = RootWidget()
 
@@ -146,10 +150,19 @@ class FestivalApp(App):
             self.open_add_popup(instance)
 
     def switch_tab(self, tab_name):
-        if tab_name == self.active_tab:
-            return
+        tab_changed = tab_name != self.active_tab
         self.active_tab = tab_name
-        self.refresh_nav_bar()
+        self.viewing_festival = None
+        if tab_changed:
+            self.refresh_nav_bar()
+        self.refresh_list()
+
+    def show_festival_detail(self, festival):
+        self.viewing_festival = festival
+        self.refresh_list()
+
+    def close_festival_detail(self):
+        self.viewing_festival = None
         self.refresh_list()
 
     def refresh_nav_bar(self):
@@ -184,6 +197,7 @@ class FestivalApp(App):
 
     def open_add_popup(self, instance, festival=None):
         self.editing_festival_id = festival["id"] if festival else None
+        self.editing_festival = festival
 
         popup_layout = BoxLayout(orientation="vertical", spacing=dp(5), padding=dp(5))
 
@@ -192,14 +206,14 @@ class FestivalApp(App):
             spacing=dp(4),
             padding=dp(10),
             size_hint_y=None,
-            height=dp(525),
         )
+        form.bind(minimum_height=form.setter("height"))
 
         self.name_input = Factory.StyledTextInput(multiline=True)
-        add_form_row(form, "Name:", self.name_input)
+        add_form_row(form, "Name:", self.name_input, row_height=dp(60))
 
         self.location_input = Factory.StyledTextInput(multiline=True)
-        add_form_row(form, "Location /\nAddress:", self.location_input)
+        add_form_row(form, "Location /\nAddress:", self.location_input, row_height=dp(70))
 
         self.website_input = Factory.StyledTextInput(multiline=False)
         add_form_row(form, "Website:", self.website_input)
@@ -211,13 +225,26 @@ class FestivalApp(App):
         start_row.add_widget(self.start_day)
         start_row.add_widget(self.start_month)
         start_row.add_widget(self.start_year)
-        add_form_row(form, "Start date:", start_row, row_size_hint_y=0.8)
+        add_form_row(form, "Start date:", start_row)
+
+        times_row = BoxLayout(spacing=dp(5))
+        self.open_time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
+        self.close_time_spinner = Spinner(text=TIMES[-1], values=TIMES, font_size="11sp")
+        times_row.add_widget(self.open_time_spinner)
+        times_row.add_widget(self.close_time_spinner)
+        add_form_row(form, "Open / Close:", times_row)
 
         self.one_day_checkbox = CheckBox(size_hint=(None, None), size=(dp(30), dp(30)))
         self.one_day_checkbox.bind(active=self.toggle_one_day)
         checkbox_row = AnchorLayout(anchor_x="left", anchor_y="center")
         checkbox_row.add_widget(self.one_day_checkbox)
-        add_form_row(form, "One day only:", checkbox_row, row_size_hint_y=0.8)
+        add_form_row(form, "One day only:", checkbox_row, row_height=dp(40))
+
+        self.varies_by_day_checkbox = CheckBox(size_hint=(None, None), size=(dp(30), dp(30)))
+        self.varies_by_day_checkbox.bind(active=self.rebuild_day_times_rows)
+        varies_row = AnchorLayout(anchor_x="left", anchor_y="center")
+        varies_row.add_widget(self.varies_by_day_checkbox)
+        add_form_row(form, "Different times\nafter day 1:", varies_row, row_height=dp(40))
 
         end_row = BoxLayout(spacing=dp(5))
         self.end_day = Spinner(text=DAYS[0], values=DAYS, font_size="11sp")
@@ -226,24 +253,30 @@ class FestivalApp(App):
         end_row.add_widget(self.end_day)
         end_row.add_widget(self.end_month)
         end_row.add_widget(self.end_year)
-        add_form_row(form, "End date:", end_row, row_size_hint_y=0.8)
+        add_form_row(form, "End date:", end_row)
+
+        self.day_times_container = BoxLayout(
+            orientation="vertical", spacing=dp(4), size_hint_y=None
+        )
+        self.day_times_container.bind(
+            minimum_height=self.day_times_container.setter("height")
+        )
+        form.add_widget(self.day_times_container)
 
         self.start_day.bind(text=self.update_end_date)
         self.start_month.bind(text=self.update_end_date)
         self.start_year.bind(text=self.update_end_date)
 
-        times_row = BoxLayout(spacing=dp(5))
-        self.open_time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
-        self.close_time_spinner = Spinner(text=TIMES[-1], values=TIMES, font_size="11sp")
-        times_row.add_widget(self.open_time_spinner)
-        times_row.add_widget(self.close_time_spinner)
-        add_form_row(form, "Open / Close:", times_row, row_size_hint_y=0.8)
-
-        self.varies_by_day_checkbox = CheckBox(size_hint=(None, None), size=(dp(30), dp(30)))
-        self.varies_by_day_checkbox.bind(active=self.toggle_varies_by_day)
-        varies_row = AnchorLayout(anchor_x="left", anchor_y="center")
-        varies_row.add_widget(self.varies_by_day_checkbox)
-        add_form_row(form, "Different times\neach day:", varies_row, row_size_hint_y=0.8)
+        for control, event_name in (
+            (self.start_day, "text"),
+            (self.start_month, "text"),
+            (self.start_year, "text"),
+            (self.end_day, "text"),
+            (self.end_month, "text"),
+            (self.end_year, "text"),
+            (self.one_day_checkbox, "active"),
+        ):
+            control.bind(**{event_name: self.rebuild_day_times_rows})
 
         form_scroll = ScrollView(size_hint=(1, 1))
         form_scroll.add_widget(form)
@@ -267,8 +300,8 @@ class FestivalApp(App):
             if festival["closing_time"]:
                 self.close_time_spinner.text = festival["closing_time"]
 
-            # Setting .active triggers toggle_one_day / toggle_varies_by_day, which
-            # correctly disable the end-date and time spinners respectively.
+            # Setting .active triggers toggle_one_day / rebuild_day_times_rows, which
+            # correctly disable the end-date spinners and build the per-day rows.
             self.one_day_checkbox.active = (festival["start_date"] == festival["end_date"])
             self.varies_by_day_checkbox.active = festival["varies_by_day"]
         else:
@@ -356,9 +389,73 @@ class FestivalApp(App):
         self.end_month.disabled = is_active
         self.end_year.disabled = is_active
 
-    def toggle_varies_by_day(self, checkbox, is_active):
-        self.open_time_spinner.disabled = is_active
-        self.close_time_spinner.disabled = is_active
+    def get_selected_date_range(self):
+        try:
+            start_date = date(
+                int(self.start_year.text),
+                MONTHS.index(self.start_month.text) + 1,
+                int(self.start_day.text),
+            )
+        except ValueError:
+            return None, None
+
+        if self.one_day_checkbox.active:
+            end_date = start_date
+        else:
+            try:
+                end_date = date(
+                    int(self.end_year.text),
+                    MONTHS.index(self.end_month.text) + 1,
+                    int(self.end_day.text),
+                )
+            except ValueError:
+                return None, None
+
+        if end_date < start_date:
+            return None, None
+
+        return start_date, end_date
+
+    def rebuild_day_times_rows(self, *args):
+        self.day_times_container.clear_widgets()
+        self.day_time_spinners = {}
+
+        if not self.varies_by_day_checkbox.active:
+            return
+
+        start_date, end_date = self.get_selected_date_range()
+        if start_date is None or end_date <= start_date:
+            return
+
+        saved_day_times = {}
+        if self.editing_festival:
+            saved_day_times = self.editing_festival.get("day_times", {})
+
+        current_date = start_date + timedelta(days=1)
+        while current_date <= end_date:
+            date_iso = current_date.isoformat()
+            saved = saved_day_times.get(date_iso, {})
+
+            day_times_row = BoxLayout(spacing=dp(5))
+            open_spinner = Spinner(
+                text=saved.get("open", TIMES[0]), values=TIMES, font_size="11sp"
+            )
+            close_spinner = Spinner(
+                text=saved.get("close", TIMES[-1]), values=TIMES, font_size="11sp"
+            )
+            day_times_row.add_widget(open_spinner)
+            day_times_row.add_widget(close_spinner)
+
+            add_form_row(
+                self.day_times_container,
+                f"{current_date.strftime('%a %d %b')}:",
+                day_times_row,
+                row_height=dp(36),
+            )
+
+            self.day_time_spinners[date_iso] = (open_spinner, close_spinner)
+
+            current_date += timedelta(days=1)
 
     def update_end_date(self, *_):
         try:
@@ -386,29 +483,18 @@ class FestivalApp(App):
         if not name:
             return
 
-        try:
-            start_date = date(
-                int(self.start_year.text),
-                MONTHS.index(self.start_month.text) + 1,
-                int(self.start_day.text),
-            )
-            if self.one_day_checkbox.active:
-                end_date = start_date
-            else:
-                end_date = date(
-                    int(self.end_year.text),
-                    MONTHS.index(self.end_month.text) + 1,
-                    int(self.end_day.text),
-                )
-        except ValueError:
+        start_date, end_date = self.get_selected_date_range()
+        if start_date is None:
             return
 
-        if end_date < start_date:
-            return
-
+        opening_time = self.open_time_spinner.text
+        closing_time = self.close_time_spinner.text
         varies_by_day = self.varies_by_day_checkbox.active
-        opening_time = "" if varies_by_day else self.open_time_spinner.text
-        closing_time = "" if varies_by_day else self.close_time_spinner.text
+
+        day_times = {}
+        if varies_by_day:
+            for date_iso, (open_spinner, close_spinner) in self.day_time_spinners.items():
+                day_times[date_iso] = {"open": open_spinner.text, "close": close_spinner.text}
 
         try:
             if self.editing_festival_id:
@@ -421,6 +507,7 @@ class FestivalApp(App):
                     opening_time,
                     closing_time,
                     varies_by_day,
+                    day_times,
                     website,
                 )
             else:
@@ -432,6 +519,7 @@ class FestivalApp(App):
                     opening_time,
                     closing_time,
                     varies_by_day,
+                    day_times,
                     website,
                 )
         except FirebaseError:
@@ -453,8 +541,8 @@ class FestivalApp(App):
             spacing=dp(4),
             padding=dp(10),
             size_hint_y=None,
-            height=dp(140),
         )
+        form.bind(minimum_height=form.setter("height"))
 
         self.resource_name_input = Factory.StyledTextInput(multiline=False)
         add_form_row(form, "Name:", self.resource_name_input)
@@ -548,6 +636,10 @@ class FestivalApp(App):
     def refresh_list(self):
         self.list_layout.clear_widgets()
 
+        if self.viewing_festival:
+            self.list_layout.add_widget(self.build_festival_detail(self.viewing_festival))
+            return
+
         if self.active_tab == "resources":
             try:
                 resources = database.get_all_resources()
@@ -612,121 +704,180 @@ class FestivalApp(App):
         return card
 
     def build_festival_card(self, festival):
-        card = Factory.FestivalCard(orientation="vertical", height=dp(117))
-
-        top_row = BoxLayout(
-            orientation="horizontal", size_hint_y=None, height=dp(42), spacing=dp(6)
-        )
-
-        link_icon = Factory.LinkIcon(
-            text="Link",
-            size_hint=(None, None),
-            size=(dp(40), dp(28)),
-            pos_hint={"center_y": 0.5},
-        )
-        if festival["website"]:
-            link_icon.bind(
-                on_press=lambda instance, url=festival["website"]: self.open_website(url)
+        card = Factory.FestivalCard(orientation="vertical", height=dp(88), spacing=dp(4))
+        card.bind(
+            on_touch_down=lambda widget, touch, fest=festival: (
+                self.show_festival_detail(fest) if widget.collide_point(*touch.pos) else False
             )
-        else:
-            link_icon.disabled = True
-            link_icon.opacity = 0.3
-        top_row.add_widget(link_icon)
+        )
 
         name_label = Factory.StyledLabel(
-            text=f"{festival['name']} [size=11sp][color=#D2691E] edit[/color][/size]",
+            text=festival["name"],
             font_size="15sp",
             bold=True,
             halign="center",
             valign="middle",
-            markup=True,
+            size_hint_y=None,
+            height=dp(32),
         )
         name_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
-        name_label.bind(
-            on_touch_down=lambda label, touch, fest=festival: (
-                self.open_add_popup(None, fest)
-                if label.collide_point(*touch.pos)
-                else False
-            )
-        )
-        top_row.add_widget(name_label)
-
-        card.add_widget(top_row)
-
-        bottom_row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp(56))
-
-        # --- Bottom-left column: date range + opening time ---
-        date_column = BoxLayout(orientation="vertical", size_hint_x=0.33)
+        card.add_widget(name_label)
 
         date_range_text = (
             f"{festival['start_date'].strftime('%a %d %b %Y')} to "
-            f"\n{festival['end_date'].strftime('%a %d %b %Y')}"
+            f"{festival['end_date'].strftime('%a %d %b %Y')}"
         )
         date_label = Factory.StyledLabel(
             text=date_range_text,
             font_size="10sp",
             bold=True,
-            halign="left",
-            valign="middle",
-            size_hint_y=None,
-            height=dp(36),
-        )
-        date_label.bind(size=date_label.setter("text_size"))
-        date_column.add_widget(date_label)
-
-        if festival["varies_by_day"]:
-            time_text = "Times vary by day - see website"
-        else:
-            time_text = f"{festival['opening_time']} - {festival['closing_time']}"
-
-        time_label = Factory.StyledLabel(
-            text=time_text,
-            font_size="10sp",
-            halign="left",
+            halign="center",
             valign="middle",
             size_hint_y=None,
             height=dp(20),
         )
-        time_label.bind(size=time_label.setter("text_size"))
-        date_column.add_widget(time_label)
+        date_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+        card.add_widget(date_label)
 
-        bottom_row.add_widget(date_column)
-
-        # --- Bottom-middle column: wrapped address ---
         location_label = Factory.StyledLabel(
             text=festival["location"],
             font_size="10sp",
             halign="center",
             valign="middle",
-            size_hint_x=0.47,
+            size_hint_y=None,
+            height=dp(28),
+        )
+        location_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+        card.add_widget(location_label)
+
+        return card
+
+    def get_day_times(self, festival, day):
+        if festival["varies_by_day"] and day != festival["start_date"]:
+            saved = festival.get("day_times", {}).get(day.isoformat())
+            if saved:
+                return saved["open"], saved["close"]
+        return festival["opening_time"], festival["closing_time"]
+
+    def build_festival_detail(self, festival):
+        detail = BoxLayout(orientation="vertical", spacing=dp(10), padding=dp(12), size_hint_y=None)
+        detail.bind(minimum_height=detail.setter("height"))
+
+        back_container = AnchorLayout(
+            anchor_x="left", anchor_y="center", size_hint_y=None, height=dp(36)
+        )
+        back_button = Factory.CancelButton(
+            text="< Back", font_size="13sp", size_hint=(None, None), size=(dp(90), dp(36))
+        )
+        back_button.bind(on_press=lambda instance: self.close_festival_detail())
+        back_container.add_widget(back_button)
+        detail.add_widget(back_container)
+
+        name_label = Factory.StyledLabel(
+            text=festival["name"],
+            font_size="20sp",
+            bold=True,
+            halign="center",
+            valign="middle",
+            size_hint_y=None,
+            height=dp(40),
+        )
+        name_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+        detail.add_widget(name_label)
+
+        date_range_text = (
+            f"{festival['start_date'].strftime('%a %d %b %Y')} to "
+            f"{festival['end_date'].strftime('%a %d %b %Y')}"
+        )
+        dates_label = Factory.StyledLabel(
+            text=date_range_text,
+            font_size="14sp",
+            bold=True,
+            halign="center",
+            valign="middle",
+            size_hint_y=None,
+            height=dp(24),
+        )
+        dates_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+        detail.add_widget(dates_label)
+
+        day_lines = []
+        current_date = festival["start_date"]
+        while current_date <= festival["end_date"]:
+            open_time, close_time = self.get_day_times(festival, current_date)
+            day_lines.append(f"{current_date.strftime('%a %d %b')}: {open_time} - {close_time}")
+            current_date += timedelta(days=1)
+
+        hours_label = Factory.StyledLabel(
+            text="\n".join(day_lines),
+            font_size="12sp",
+            halign="center",
+            valign="middle",
+            size_hint_y=None,
+            text_size=(0, None),
+        )
+        hours_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
+        hours_label.bind(
+            texture_size=lambda label, size: setattr(label, "height", size[1] + dp(6))
+        )
+        detail.add_widget(hours_label)
+
+        location_label = Factory.StyledLabel(
+            text=festival["location"],
+            font_size="12sp",
+            halign="center",
+            valign="middle",
+            size_hint_y=None,
             text_size=(0, None),
         )
         location_label.bind(width=lambda label, width: setattr(label, "text_size", (width, None)))
-        location_label.bind(texture_size=lambda label, size: setattr(label, "height", size[1]))
-        bottom_row.add_widget(location_label)
-
-        # --- Bottom-right column: right-aligned Google Maps button ---
-        maps_container = AnchorLayout(
-            anchor_x="right",
-            anchor_y="center",
-            size_hint_x=0.20,
-            size_hint_min_x=dp(56),
+        location_label.bind(
+            texture_size=lambda label, size: setattr(label, "height", size[1] + dp(10))
         )
+        detail.add_widget(location_label)
+
+        maps_container = AnchorLayout(anchor_x="center", size_hint_y=None, height=dp(44))
         maps_button = Factory.RoundedButton(
-            text="Google\nMaps",
-            font_size="10sp",
-            halign="center",
-            size_hint_x=None,
-            width=dp(56),
+            text="Open in Google Maps",
+            font_size="12sp",
+            size_hint=(None, None),
+            size=(dp(190), dp(38)),
         )
         maps_button.bind(
             on_press=lambda instance, loc=festival["location"]: self.open_in_maps(loc)
         )
         maps_container.add_widget(maps_button)
-        bottom_row.add_widget(maps_container)
-        card.add_widget(bottom_row)
+        detail.add_widget(maps_container)
 
-        return card
+        website_container = AnchorLayout(anchor_x="center", size_hint_y=None, height=dp(44))
+        website_button = Factory.LinkIcon(
+            text="Visit Website",
+            font_size="13sp",
+            size_hint=(None, None),
+            size=(dp(150), dp(36)),
+        )
+        if festival["website"]:
+            website_button.bind(
+                on_press=lambda instance, url=festival["website"]: self.open_website(url)
+            )
+        else:
+            website_button.disabled = True
+            website_button.opacity = 0.3
+        website_container.add_widget(website_button)
+        detail.add_widget(website_container)
+
+        edit_container = AnchorLayout(anchor_x="center", size_hint_y=None, height=dp(48))
+        edit_button = Factory.RoundedButton(
+            text="Edit Festival",
+            font_size="13sp",
+            size_hint=(None, None),
+            size=(dp(160), dp(40)),
+        )
+        edit_button.bind(on_press=lambda instance, fest=festival: self.open_add_popup(None, fest))
+        edit_container.add_widget(edit_button)
+        detail.add_widget(edit_container)
+
+        return detail
 
 
 if __name__ == "__main__":
