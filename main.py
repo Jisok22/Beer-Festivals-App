@@ -528,8 +528,21 @@ class FestivalApp(App):
             )
             return
 
+        if self.viewing_festival and self.viewing_festival["id"] == self.editing_festival_id:
+            self.viewing_festival = self.find_festival_by_id(self.editing_festival_id)
+
         self.refresh_list()
         self.popup.dismiss()
+
+    def find_festival_by_id(self, festival_id):
+        try:
+            festivals = database.get_all_festivals()
+        except FirebaseError:
+            return None
+        for festival in festivals:
+            if festival["id"] == festival_id:
+                return festival
+        return None
 
     def open_add_resource_popup(self, instance=None, resource=None):
         self.editing_resource_id = resource["id"] if resource else None
