@@ -717,7 +717,7 @@ class FestivalApp(App):
         return card
 
     def build_festival_card(self, festival):
-        card = Factory.FestivalCard(orientation="vertical", height=dp(88), spacing=dp(4))
+        card = Factory.FestivalCard(orientation="vertical", height=dp(106), spacing=dp(4))
         card.bind(
             on_touch_down=lambda widget, touch, fest=festival: (
                 self.show_festival_detail(fest) if widget.collide_point(*touch.pos) else False
