@@ -777,7 +777,7 @@ class FestivalApp(App):
         detail.bind(minimum_height=detail.setter("height"))
 
         back_container = AnchorLayout(
-            anchor_x="left", anchor_y="center", size_hint_y=None, height=dp(36)
+            anchor_x="left", anchor_y="center", size_hint_y=None, height=dp(46)
         )
         back_button = Factory.CancelButton(
             text="< Back", font_size="13sp", size_hint=(None, None), size=(dp(90), dp(36))
