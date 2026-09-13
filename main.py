@@ -23,14 +23,15 @@ import database
 from database import FirebaseError
 
 DAYS = [str(d) for d in range(1, 32)]
-MONTHS = list(calendar.month_name)[1:]
+MONTHS = list(calendar.month_abbr)[1:]
 CURRENT_YEAR = date.today().year
 YEARS = [str(y) for y in range(CURRENT_YEAR, CURRENT_YEAR + 5)]
 
 TIMES = []
-for hour in range(8, 23):
+for hour in range(8, 24):
     for minute in (0, 30):
         TIMES.append(f"{hour:02d}:{minute:02d}")
+TIMES.append("00:00")
 
 
 class RootWidget(FloatLayout):
@@ -229,7 +230,7 @@ class FestivalApp(App):
 
         times_row = BoxLayout(spacing=dp(5))
         self.open_time_spinner = Spinner(text=TIMES[0], values=TIMES, font_size="11sp")
-        self.close_time_spinner = Spinner(text=TIMES[-1], values=TIMES, font_size="11sp")
+        self.close_time_spinner = Spinner(text="22:30", values=TIMES, font_size="11sp")
         times_row.add_widget(self.open_time_spinner)
         times_row.add_widget(self.close_time_spinner)
         add_form_row(form, "Open / Close:", times_row)
@@ -441,7 +442,7 @@ class FestivalApp(App):
                 text=saved.get("open", TIMES[0]), values=TIMES, font_size="11sp"
             )
             close_spinner = Spinner(
-                text=saved.get("close", TIMES[-1]), values=TIMES, font_size="11sp"
+                text=saved.get("close", "22:30"), values=TIMES, font_size="11sp"
             )
             day_times_row.add_widget(open_spinner)
             day_times_row.add_widget(close_spinner)
