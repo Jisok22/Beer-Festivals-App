@@ -294,3 +294,4 @@ set to File Transfer, not "Charging only".
 | Clean just Buildozer's own build state | `buildozer android clean` |
 | Reactivate the virtual environment | `source ~/buildozer-env/bin/activate` |
 | Open the project in VS Code (from WSL) | `code .` |
+| Copy the file from ubuntu to /bin | `mkdir -p /mnt/c/Users/Jisok/OneDrive/GitHub/Beer-Festivals-App/apk && cp ~/beer_festival_app/bin/*.apk /mnt/c/Users/Jisok/OneDrive/GitHub/Beer-Festivals-App/apk/`|

@@ -25,3 +25,6 @@ Thumbs.db
 
 # VS Code editor settings (optional — remove this line if you want to share settings)
 .vscode/
+
+# apk
+apk/
