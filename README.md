@@ -5,6 +5,7 @@ computer restarts, WSL closes, or you come back to this after a break.
 
 ## Contents
 
+- [Database and Login](#database-and-login)
 - [Windows VS Code Commands](#windows-vs-code-commands)
 - [Day-to-day workflow (after editing code on Windows)](#day-to-day-workflow-after-editing-code-on-windows)
 - [Quick resume (if a build was interrupted)](#quick-resume-if-a-build-was-interrupted)
@@ -15,6 +16,12 @@ computer restarts, WSL closes, or you come back to this after a break.
 - [Known issues hit during setup (for reference)](#known-issues-hit-during-setup-for-reference)
 - [Installing via adb (instead of manually copying the APK)](#installing-via-adb-instead-of-manually-copying-the-apk)
 - [Useful commands](#useful-commands)
+
+## Database and Login
+
+- [Firebase overview page](https://console.firebase.google.com/u/0/project/beer-festival-app-a8018/overview)
+
+- [Add user](https://console.firebase.google.com/u/0/project/beer-festival-app-a8018/authentication/users)
 
 ## Windows VS Code Commands
 
