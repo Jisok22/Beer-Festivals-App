@@ -2,6 +2,7 @@ from datetime import date, timedelta
 import calendar
 import webbrowser
 import urllib.parse
+import threading
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -90,13 +91,88 @@ class PullToRefreshScrollView(ScrollView):
 
         return handled
 
+class LoginPopup(Popup):
+    def __init__(self, on_success, **kwargs):
+        super().__init__(
+            title="Sign in",
+            size_hint=(0.9, None),
+            height=dp(300),
+            auto_dismiss=False,  # must sign in to continue
+            **kwargs,
+        )
+        self.on_success = on_success
+
+        layout = BoxLayout(orientation="vertical", spacing=dp(8), padding=dp(10))
+
+        self.email_input = Factory.StyledTextInput(
+            multiline=False, hint_text="Email", write_tab=False, input_type="mail"
+        )
+        self.email_input.size_hint_y = None
+        self.email_input.height = dp(44)
+
+        self.password_input = Factory.StyledTextInput(
+            multiline=False, hint_text="Password", write_tab=False, password=True
+        )
+        self.password_input.size_hint_y = None
+        self.password_input.height = dp(44)
+
+        self.message_label = Factory.StyledLabel(
+            text="", font_size="12sp", halign="center", valign="middle",
+            size_hint_y=None, height=dp(36),
+        )
+        self.message_label.bind(size=self.message_label.setter("text_size"))
+
+        self.login_button = Factory.RoundedButton(
+            text="Log in", font_size="14sp", size_hint_y=None, height=dp(48)
+        )
+        self.login_button.bind(on_press=self.do_login)
+
+        for widget in (
+            self.email_input,
+            self.password_input,
+            self.message_label,
+            self.login_button,
+        ):
+            layout.add_widget(widget)
+        self.content = layout
+
+    def do_login(self, *_):
+        email = self.email_input.text.strip().lower()
+        password = self.password_input.text
+        if not email or not password:
+            self.message_label.text = "Enter your email and password."
+            return
+
+        self.login_button.disabled = True
+        self.message_label.text = "Signing in..."
+        threading.Thread(
+            target=self._sign_in, args=(email, password), daemon=True
+        ).start()
+
+    def _sign_in(self, email, password):
+        # Runs off the UI thread so the app doesn't freeze while waiting
+        try:
+            database.sign_in(email, password)
+        except FirebaseError as e:
+            Clock.schedule_once(lambda dt, msg=str(e): self._failed(msg))
+        else:
+            Clock.schedule_once(lambda dt: self._succeeded())
+
+    def _failed(self, message):
+        self.message_label.text = message
+        self.login_button.disabled = False
+
+    def _succeeded(self):
+        self.dismiss()
+        self.on_success()
+
 
 class FestivalApp(App):
     def build(self):
-        database.init_db()
+        database.init_db(self.user_data_dir)
 
+        self.login_popup = None
         self.editing_festival_id = None
-        self.editing_festival = None
         self.editing_resource_id = None
         self.active_tab = "current"
         self.viewing_festival = None
@@ -140,7 +216,10 @@ class FestivalApp(App):
         root.add_widget(add_button)
 
         self.refresh_nav_bar()
-        Clock.schedule_once(lambda dt: self.refresh_list())
+        if database.has_saved_login():
+            Clock.schedule_once(lambda dt: self.refresh_list())
+        else:
+            Clock.schedule_once(lambda dt: self.show_login())
 
         return root
 
@@ -195,6 +274,28 @@ class FestivalApp(App):
             size_hint=(0.8, 0.4),
         )
         error_popup.open()
+
+    def show_login(self):
+        if self.login_popup is not None:
+            return  # already showing
+        self.login_popup = LoginPopup(on_success=self.on_login_success)
+        self.login_popup.open()
+
+    def on_login_success(self):
+        self.login_popup = None
+        self.refresh_list()
+
+    def handle_firebase_error(self, error, friendly_message):
+        """Sends expired/missing logins to the login popup; shows a
+        friendly popup for everything else."""
+        if isinstance(error, database.AuthRequiredError):
+            self.show_login()
+        elif "permission denied" in str(error):
+            self.show_error_popup(
+                "This account isn't allowed to use the app. Ask the organiser to add you."
+            )
+        else:
+            self.show_error_popup(friendly_message)
 
     def open_add_popup(self, instance, festival=None):
         self.editing_festival_id = festival["id"] if festival else None
@@ -374,10 +475,10 @@ class FestivalApp(App):
     def delete_festival(self, festival_id, confirm_popup):
         try:
             database.delete_festival(festival_id)
-        except FirebaseError:
+        except FirebaseError as e:
             confirm_popup.dismiss()
-            self.show_error_popup(
-                "Couldn't delete the festival. Check your internet connection and try again."
+            self.handle_firebase_error(
+                e, "Couldn't delete the festival. Check your internet connection and try again."
             )
             return
 
@@ -523,9 +624,9 @@ class FestivalApp(App):
                     day_times,
                     website,
                 )
-        except FirebaseError:
-            self.show_error_popup(
-                "Couldn't save the festival. Check your internet connection and try again."
+        except FirebaseError as e:
+            self.handle_firebase_error(
+                e, "Couldn't save the festival. Check your internet connection and try again."
             )
             return
 
@@ -612,9 +713,9 @@ class FestivalApp(App):
                 database.update_resource(self.editing_resource_id, name, url)
             else:
                 database.add_resource(name, url)
-        except FirebaseError:
-            self.show_error_popup(
-                "Couldn't save the resource. Check your internet connection and try again."
+        except FirebaseError as e:
+            self.handle_firebase_error(
+                e, "Couldn't save the resource. Check your internet connection and try again."
             )
             return
 
@@ -624,10 +725,10 @@ class FestivalApp(App):
     def delete_resource(self, resource_id, confirm_popup):
         try:
             database.delete_resource(resource_id)
-        except FirebaseError:
+        except FirebaseError as e:
             confirm_popup.dismiss()
-            self.show_error_popup(
-                "Couldn't delete the resource. Check your internet connection and try again."
+            self.handle_firebase_error(
+                e, "Couldn't delete the resource. Check your internet connection and try again."
             )
             return
 
@@ -657,9 +758,9 @@ class FestivalApp(App):
         if self.active_tab == "resources":
             try:
                 resources = database.get_all_resources()
-            except FirebaseError:
-                self.show_error_popup(
-                    "Couldn't load resources. Check your internet connection and try again."
+            except FirebaseError as e:
+                self.handle_firebase_error(
+                    e, "Couldn't load resources. Check your internet connection and try again."
                 )
                 return
 
@@ -669,9 +770,9 @@ class FestivalApp(App):
 
         try:
             festivals = database.get_all_festivals()
-        except FirebaseError:
-            self.show_error_popup(
-                "Couldn't load the festival list. Check your internet connection and try again."
+        except FirebaseError as e:
+            self.handle_firebase_error(
+                e, "Couldn't load the festival list. Check your internet connection and try again."
             )
             return
 
